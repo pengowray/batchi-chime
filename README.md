@@ -38,7 +38,7 @@ node tools/chime_render.mjs --rate 192000 --unix 1793000000 --tz 660 --out chime
 
 The X8's bat detector firmware and the chime decoder are in the `batchi-tascam-oversample-colab` repository, in `crates/x8-patch` and `crates/chime`. The chime decoder's tests use a render from `tools/chime_render.mjs`.
 
-The X8 firmware cannot read the chime yet. To test a recording, record the chime on the X8 at 192 kHz, copy the WAV file to the computer, and run this in that repository:
+The X8's firmware does not set its clock from the chime yet. Firmware B235 and later can show the time it reads: in BAT DETECTOR's settings, tap `Chime test`. To test a recording on any firmware, record the chime on the X8 at 192 kHz, copy the WAV file to the computer, and run this in that repository:
 
 ```bash
 cargo run --release -p chime --example decode_wav -- FILE.wav
