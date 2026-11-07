@@ -18,6 +18,8 @@ python3 -m http.server 8743
 
 Then open <http://localhost:8743/>. To use it on a phone, publish this folder on any https host. Getting the phone's location needs https.
 
+When you change a CSS or JS file, raise the `?v=` number on every link to it in `index.html`. GitHub Pages lets browsers keep each file for 10 minutes, so without the new number a phone can show the new page with the old script and stylesheet.
+
 ## Files
 
 `audiomothchime.js` and `audiomothchime_connector.js` are unmodified copies of Open Acoustic Devices' MIT-licensed library (`LICENSE-audiomoth.txt`).
