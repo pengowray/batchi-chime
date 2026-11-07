@@ -139,6 +139,10 @@ input:disabled, select:disabled, .plain:disabled, .send:disabled { opacity: 0.6;
 .status.error { color: var(--rec); font-weight: 600; }
 .status .latest { white-space: nowrap; }
 
+h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+/* Two buttons of equal weight: which one is wanted depends on what the recorder is doing. */
+.remote-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
 .note { margin: 0 0 16px; }
 /* What the reader would not assume: the recorder can't use the sound yet, or nobody has tested it. */
 .note.exception { font-weight: 600; }

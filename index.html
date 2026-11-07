@@ -25,8 +25,24 @@
 
   <section id="panel-x8" role="tabpanel" aria-labelledby="tab-x8" hidden>
     <h2>Tascam X8 Oversample Bat Recorder</h2>
+    <h3>Start or stop recording</h3>
+    <div class="remote-buttons">
+      <button class="send" id="x8-start" type="button"></button>
+      <button class="send" id="x8-stop" type="button"></button>
+    </div>
+    <p class="status tall" id="x8-remote-status" role="status"></p>
+    <label class="check"><input id="x8-location" type="checkbox"> Add my location to the chime</label>
+    <p class="hint">The chime that stops a recording is itself recorded. Later, on a computer, the <code>decode_wav</code> program reads its date, time, UTC offset and location from the WAV file.</p>
+    <ul class="help">
+      <li>Needs X8 firmware B239 or later, with Phone remote on under SETTINGS, Tools.</li>
+      <li>The X8 must show BAT DETECTOR, with HOLD off.</li>
+      <li>If REC PAUSE is on and the recorder is stopped, the X8 hears nothing. Press REC once first. After a stop by phone, the X8 goes back to standby by itself.</li>
+      <li>Play from the phone's own speaker, close to the X8's microphones.</li>
+    </ul>
+
+    <h3>Chime test</h3>
     <p class="note exception">The chime does not set the X8's clock yet.</p>
-    <p class="note">Firmware B235 or later: open BAT DETECTOR's settings with the menu button and tap Chime test. The X8 should then show a time within about 1&nbsp;s of the phone's clock above.</p>
+    <p class="note">Firmware B235 or later: open BAT DETECTOR's settings with the menu button and tap Chime test. On B239 or later, tap Tools first. The X8 should then show a time within about 1&nbsp;s of the phone's clock above.</p>
     <div class="send-bar"><button class="send" id="x8-send" type="button"></button></div>
     <p class="status" id="x8-status" role="status"></p>
     <ul class="help">

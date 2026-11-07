@@ -15,6 +15,10 @@
         noAudio: 'This browser cannot play audio from a web page. Open this page in a different browser.',
         failed: 'Audio failed to start: reason unknown. Press the button to try again.',
         triggerVeryHighFirmware8: 'On firmware 8, Very high records continuously.',
+        remoteStart: 'Start recording',
+        remoteStop: 'Stop recording',
+        remoteIdle: 'The page cannot tell whether the X8 heard it. Listen for its beeps in the headphones.',
+        remoteNoLocation: 'No location yet, so this chime has none.',
         x8Idle: "The phone's clock needs to be right. The chime contains the phone's date and time.",
         chirp: 'Play settings chirp',
         chirpAgain: 'Play settings chirp again',
@@ -357,6 +361,101 @@
         });
     }
 
+    /* The phone remote: a short tone, which wakes the X8's chime decoders, then a chime with
+       the command in its deployment ID. The connector reverses the ID, so this gives the X8
+       "BATXREC" and then the command. The X8 does nothing if it is already in that state, so
+       each press plays twice: if the X8 reads both, the second does no harm, and a second chime
+       in a recording that has started records the date, time and location at its start too. */
+    const REMOTE_COMMAND_START = 1;
+    const REMOTE_COMMAND_STOP = 2;
+    const REMOTE_PLAYS = 2;
+    const REMOTE_TONE_MS = 500;
+    /* The decoders may have taken the tone for a chime, and then wait a moment after it ends.
+       The connector then adds up to 1.2 s to reach a whole second, and the X8 keeps listening
+       for 6 s after the tone. */
+    const REMOTE_WAIT_AFTER_TONE_MS = 800;
+    /* Long enough to be found again by the location lookup, and short enough to be current. */
+    const REMOTE_LOCATION_MAX_AGE_MS = 60000;
+
+    let remoteFix = null;
+
+    function remoteDeploymentId(command) {
+        return [command, 0x43, 0x45, 0x52, 0x58, 0x54, 0x41, 0x42];
+    }
+
+    function updateRemoteFix() {
+        if (!element('x8-location').checked || !navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(function (position) {
+            remoteFix = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+        }, function (error) {
+            showStatus(remotePanels.start, error.code === error.PERMISSION_DENIED ? TEXT.locationRefused : TEXT.locationNotFound, true);
+        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: REMOTE_LOCATION_MAX_AGE_MS });
+    }
+
+    function remoteChimeFinished(thisRun, command, play) {
+        if (run !== thisRun) return;
+        clearTimeout(thisRun.endTimer);
+        thisRun.count += 1;
+        if (play < REMOTE_PLAYS) {
+            thisRun.gapTimer = setTimeout(function () { playRemote(thisRun, command, play + 1); }, GAP_BETWEEN_CHIMES_MS);
+            return;
+        }
+        finish(thisRun, function () {
+            showStatus(thisRun.panel, thisRun.panel.sendLabel() + ' played twice. ' + TEXT.remoteIdle);
+        });
+    }
+
+    function playRemote(thisRun, command, play) {
+        const useLocation = element('x8-location').checked;
+        const missing = useLocation && !remoteFix ? ' ' + TEXT.remoteNoLocation : '';
+        showStatus(thisRun.panel, thisRun.panel.sendLabel() + ', ' + play + ' of ' + REMOTE_PLAYS + ': tone, then chime. Press the button again to stop.' + missing);
+        thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, REMOTE_TONE_MS + CHIME_END_TIMEOUT_MS);
+        thisRun.connector.playTone(REMOTE_TONE_MS, function () {
+            if (run !== thisRun) return;
+            clearTimeout(thisRun.endTimer);
+            thisRun.gapTimer = setTimeout(function () {
+                const fix = useLocation ? remoteFix : null;
+                thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, CHIME_END_TIMEOUT_MS);
+                thisRun.connector.playTimeAndDeploymentID(new Date(), null, fix ? fix.latitude : null, fix ? fix.longitude : null, remoteDeploymentId(command), function () {
+                    remoteChimeFinished(thisRun, command, play);
+                });
+            }, REMOTE_WAIT_AFTER_TONE_MS);
+        });
+    }
+
+    function sendRemote(panel, command) {
+        if (!RealAudioContext) {
+            showStatus(panel, TEXT.noAudio, true);
+            return;
+        }
+        updateRemoteFix();
+        panel.button.textContent = TEXT.stop;
+        startRun(panel, function (started) {
+            window.AudioContext = function () { return started.context; };
+            started.connector = new window.AudioMothChimeConnector();
+            playRemote(started, command, 1);
+        });
+    }
+
+    const remotePanels = {
+        start: {
+            section: element('panel-x8'),
+            button: element('x8-start'),
+            status: element('x8-remote-status'),
+            sendLabel: () => TEXT.remoteStart,
+            idleText: () => TEXT.remoteIdle,
+            send: function () { sendRemote(remotePanels.start, REMOTE_COMMAND_START); }
+        },
+        stop: {
+            section: element('panel-x8'),
+            button: element('x8-stop'),
+            status: element('x8-remote-status'),
+            sendLabel: () => TEXT.remoteStop,
+            idleText: () => TEXT.remoteIdle,
+            send: function () { sendRemote(remotePanels.stop, REMOTE_COMMAND_STOP); }
+        }
+    };
+
     /* Field checks. Each returns the value, or shows an error and returns undefined. */
 
     /* On a touch screen, focus would open the keyboard, which can cover the error. The
@@ -683,6 +782,19 @@
             panel.status.scrollIntoView({ block: 'nearest' });
         });
     });
+
+    /* The other button is still a command, so it stops what is playing and plays its own. */
+    Object.values(remotePanels).forEach(function (panel) {
+        panel.button.textContent = panel.sendLabel();
+        showIdle(panel);
+        panel.button.addEventListener('click', function () {
+            const pressedAgain = run && run.panel === panel;
+            if (run) stopRun();
+            if (!pressedAgain) panel.send();
+            panel.status.scrollIntoView({ block: 'nearest' });
+        });
+    });
+    element('x8-location').addEventListener('change', updateRemoteFix);
 
     element('am-clock-set').addEventListener('change', function () {
         saved.audiomothClockSet = element('am-clock-set').checked;
