@@ -115,6 +115,8 @@ input::placeholder { color: var(--muted); opacity: 1; }
 /* The send button stays in view while the person scrolls through the fields. The
    band of page colour keeps the scrolled text clear of the button. */
 .send-bar { position: sticky; bottom: 0; z-index: 1; padding: 8px 0; background: var(--bg); }
+/* The X8 tab has no fields to scroll past, and a stuck button would sit over the remote's section. */
+.send-bar.in-flow { position: static; }
 .send {
   display: block;
   width: 100%;

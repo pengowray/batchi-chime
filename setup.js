@@ -17,7 +17,7 @@
         triggerVeryHighFirmware8: 'On firmware 8, Very high records continuously.',
         remoteStart: 'Start recording',
         remoteStop: 'Stop recording',
-        remoteIdle: 'The page cannot tell whether the X8 heard it. Listen for its beeps in the headphones.',
+        remoteNotHeard: 'The page cannot tell whether the X8 heard it. Listen for its beeps in the headphones.',
         remoteNoLocation: 'No location yet, so this chime has none.',
         x8Idle: "The phone's clock needs to be right. The chime contains the phone's date and time.",
         chirp: 'Play settings chirp',
@@ -401,7 +401,7 @@
             return;
         }
         finish(thisRun, function () {
-            showStatus(thisRun.panel, thisRun.panel.sendLabel() + ' played twice. ' + TEXT.remoteIdle);
+            showStatus(thisRun.panel, thisRun.panel.sendLabel() + ' played twice. ' + TEXT.remoteNotHeard);
         });
     }
 
@@ -443,7 +443,7 @@
             button: element('x8-start'),
             status: element('x8-remote-status'),
             sendLabel: () => TEXT.remoteStart,
-            idleText: () => TEXT.remoteIdle,
+            idleText: () => '',
             send: function () { sendRemote(remotePanels.start, REMOTE_COMMAND_START); }
         },
         stop: {
@@ -451,7 +451,7 @@
             button: element('x8-stop'),
             status: element('x8-remote-status'),
             sendLabel: () => TEXT.remoteStop,
-            idleText: () => TEXT.remoteIdle,
+            idleText: () => '',
             send: function () { sendRemote(remotePanels.stop, REMOTE_COMMAND_STOP); }
         }
     };
