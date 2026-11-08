@@ -42,7 +42,7 @@ The X8's bat detector firmware and the chime decoder are in the `batchi-tascam-o
 
 The X8's firmware does not set its clock from the chime yet. Firmware B235 and later can show the time it reads: in BAT DETECTOR's settings, tap `Chime test` (on B239 and later, tap `Tools` first).
 
-Firmware B239 and later can also start and stop recording from the `Start recording` and `Stop recording` buttons on the Tascam X8 tab, with Phone remote turned on under SETTINGS, Tools. Each press plays a 0.5 s tone, then a chime whose deployment ID is `BATXREC` followed by 1 (start) or 2 (stop), and plays both twice. To test a recording on any firmware, record the chime on the X8 at 192 kHz, copy the WAV file to the computer, and run this in that repository:
+Firmware B249 and later can also start and stop recording from the `Start recording` and `Stop recording` buttons on the Tascam X8 tab, with Phone remote turned on under SETTINGS, Record. Each press plays a 0.5 s tone, then a chime whose deployment ID holds the command, and plays both twice. [docs/PHONE_REMOTE.md](https://github.com/pengowray/oversample-tascam-firmware/blob/main/docs/PHONE_REMOTE.md) in the firmware repository describes the format. Builds B239 to B248 used an earlier format and ignore this page's commands. To test a recording on any firmware, record the chime on the X8 at 192 kHz, copy the WAV file to the computer, and run this in that repository:
 
 ```bash
 cargo run --release -p chime --example decode_wav -- FILE.wav

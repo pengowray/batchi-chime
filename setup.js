@@ -362,8 +362,8 @@
     }
 
     /* The phone remote: a short tone, which wakes the X8's chime decoders, then a chime with
-       the command in its deployment ID. The connector reverses the ID, so this gives the X8
-       "BATXREC" and then the command. The X8 does nothing if it is already in that state, so
+       the command in its deployment ID. docs/PHONE_REMOTE.md in the oversample-tascam-firmware
+       repository is the format. The X8 does nothing if it is already in that state, so
        each press plays twice: if the X8 reads both, the second does no harm, and a second chime
        in a recording that has started records the date, time and location at its start too. */
     const REMOTE_COMMAND_START = 1;
@@ -379,8 +379,13 @@
 
     let remoteFix = null;
 
+    /* The deployment ID as the X8 reads it: "BATX", format version 1, the command, and a
+       16-bit argument (0 for start and stop), low byte first. The connector sends the ID's bytes
+       in reverse order, so they are reversed here first. */
+    const REMOTE_VERSION = 1;
+
     function remoteDeploymentId(command) {
-        return [command, 0x43, 0x45, 0x52, 0x58, 0x54, 0x41, 0x42];
+        return [0x42, 0x41, 0x54, 0x58, REMOTE_VERSION, command, 0, 0].reverse();
     }
 
     function updateRemoteFix() {
