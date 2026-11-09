@@ -15,17 +15,24 @@
         noAudio: 'This browser cannot play audio from a web page. Open this page in a different browser.',
         failed: 'Audio failed to start: reason unknown. Press the button to try again.',
         triggerVeryHighFirmware8: 'On firmware 8, Very high records continuously.',
+        remoteClock: 'Set X8 clock',
         remoteStart: 'Start recording',
         remoteStop: 'Stop recording',
-        remoteNotHeard: 'The page cannot tell whether the X8 heard it. Listen for its beeps in the headphones.',
-        remoteNoLocation: 'No location yet, so this chime has none.',
-        x8Idle: "The phone's clock needs to be right. The chime contains the phone's date and time.",
+        remoteCancel: 'Cancel',
+        remoteMode: function (mode) { return 'Listening mode ' + mode; },
+        remotePlaying: function (name) { return name + ': playing chime\u2026'; },
+        remotePlayed: function (name, notes) { return name + ': chime played. Listen for ' + notes + ' from the X8.'; },
+        remoteCancelled: function (name) { return name + ': cancelled.'; },
+        notesRising: 'two rising notes',
+        notesFalling: 'two falling notes',
+        noteHigh: 'one high note',
+        x8Idle: "This device's clock needs to be right. The chime contains its date and time.",
         chirp: 'Play settings chirp',
         chirpAgain: 'Play settings chirp again',
-        chirpIdle: "The phone's clock needs to be right. The chirp contains the phone's local time and the settings above.",
+        chirpIdle: "This device's clock needs to be right. The chirp contains its local time and the settings above.",
         chirpWaiting: 'Waiting for the next whole second to play the chirp.',
         chirpMisread: 'Older firmware can misread a chirp without warning, so check the first recording\'s time and location.',
-        locating: "Getting the phone's location",
+        locating: "Getting this device's location",
         locationRefused: 'Location permission refused: allow location for this page, or type the latitude and longitude.',
         locationInsecure: 'Secure page needed: this browser offers location only on https. Type the latitude and longitude.',
         locationNotFound: 'Location not found: try again, or type the latitude and longitude.',
@@ -142,11 +149,11 @@
     function audiomothIdleText() {
         const hasLocation = element('am-lat').value.trim() !== '' || element('am-lon').value.trim() !== '';
         const hasId = element('am-id').value.trim() !== '';
-        let list = "the phone's date, time and UTC offset";
-        if (hasLocation && hasId) list = "the phone's date, time, UTC offset, location and deployment ID";
-        else if (hasLocation) list = "the phone's date, time, UTC offset and location";
-        else if (hasId) list = "the phone's date, time, UTC offset and deployment ID";
-        return "The phone's clock needs to be right. The chime contains " + list + '.';
+        let list = "this device's date, time and UTC offset";
+        if (hasLocation && hasId) list = "this device's date, time, UTC offset, location and deployment ID";
+        else if (hasLocation) list = "this device's date, time, UTC offset and location";
+        else if (hasId) list = "this device's date, time, UTC offset and deployment ID";
+        return "This device's clock needs to be right. The chime contains " + list + '.';
     }
 
     const panels = {
@@ -155,7 +162,7 @@
             button: element('x8-send'),
             status: element('x8-status'),
             sendLabel: () => TEXT.play,
-            idleText: () => TEXT.x8Idle,
+            idleText: () => '',
             send: sendX8
         },
         audiomoth: {
@@ -201,7 +208,7 @@
     /* The send button reads the fields once, when it is pressed. So during a run a change
        to a field would look applied but not be, and the fields are locked. */
     function lockFields(panel, locked) {
-        panel.section.querySelectorAll('input, select, .plain').forEach(function (control) {
+        panel.section.querySelectorAll('input, select, .plain:not(.run)').forEach(function (control) {
             control.disabled = locked;
         });
     }
@@ -363,103 +370,86 @@
 
     /* The phone remote: a short tone, which wakes the X8's chime decoders, then a chime with
        the command in its deployment ID. docs/PHONE_REMOTE.md in the oversample-tascam-firmware
-       repository is the format. The X8 does nothing if it is already in that state, so
-       each press plays twice: if the X8 reads both, the second does no harm, and a second chime
-       in a recording that has started records the date, time and location at its start too. */
+       repository is the format. Each press plays once. The commands set a state, so a press
+       that the X8 did not hear can simply be pressed again. */
     const REMOTE_COMMAND_START = 1;
     const REMOTE_COMMAND_STOP = 2;
-    const REMOTE_PLAYS = 2;
+    const REMOTE_COMMAND_SET_CLOCK = 3;
+    const REMOTE_COMMAND_LISTEN = 4;
     const REMOTE_TONE_MS = 500;
     /* The decoders may have taken the tone for a chime, and then wait a moment after it ends.
        The connector then adds up to 1.2 s to reach a whole second, and the X8 keeps listening
        for 6 s after the tone. */
     const REMOTE_WAIT_AFTER_TONE_MS = 800;
-    /* Long enough to be found again by the location lookup, and short enough to be current. */
-    const REMOTE_LOCATION_MAX_AGE_MS = 60000;
-
-    let remoteFix = null;
 
     /* The deployment ID as the X8 reads it: "BATX", format version 1, the command, and a
-       16-bit argument (0 for start and stop), low byte first. The connector sends the ID's bytes
-       in reverse order, so they are reversed here first. */
+       16-bit argument (the listening mode, or 0), low byte first. The connector sends the ID's
+       bytes in reverse order, so they are reversed here first. */
     const REMOTE_VERSION = 1;
 
-    function remoteDeploymentId(command) {
-        return [0x42, 0x41, 0x54, 0x58, REMOTE_VERSION, command, 0, 0].reverse();
+    function remoteDeploymentId(command, argument) {
+        return [0x42, 0x41, 0x54, 0x58, REMOTE_VERSION, command, argument & 0xff, argument >> 8].reverse();
     }
 
-    function updateRemoteFix() {
-        if (!element('x8-location').checked || !navigator.geolocation) return;
-        navigator.geolocation.getCurrentPosition(function (position) {
-            remoteFix = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-        }, function (error) {
-            showStatus(remotePanels.start, error.code === error.PERMISSION_DENIED ? TEXT.locationRefused : TEXT.locationNotFound, true);
-        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: REMOTE_LOCATION_MAX_AGE_MS });
-    }
-
-    function remoteChimeFinished(thisRun, command, play) {
-        if (run !== thisRun) return;
-        clearTimeout(thisRun.endTimer);
-        thisRun.count += 1;
-        if (play < REMOTE_PLAYS) {
-            thisRun.gapTimer = setTimeout(function () { playRemote(thisRun, command, play + 1); }, GAP_BETWEEN_CHIMES_MS);
-            return;
-        }
-        finish(thisRun, function () {
-            showStatus(thisRun.panel, thisRun.panel.sendLabel() + ' played twice. ' + TEXT.remoteNotHeard);
-        });
-    }
-
-    function playRemote(thisRun, command, play) {
-        const useLocation = element('x8-location').checked;
-        const missing = useLocation && !remoteFix ? ' ' + TEXT.remoteNoLocation : '';
-        showStatus(thisRun.panel, thisRun.panel.sendLabel() + ', ' + play + ' of ' + REMOTE_PLAYS + ': tone, then chime. Press the button again to stop.' + missing);
+    function playRemote(thisRun, command, argument, location) {
+        const name = thisRun.panel.name;
+        showStatus(thisRun.panel, TEXT.remotePlaying(name));
         thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, REMOTE_TONE_MS + CHIME_END_TIMEOUT_MS);
         thisRun.connector.playTone(REMOTE_TONE_MS, function () {
             if (run !== thisRun) return;
             clearTimeout(thisRun.endTimer);
             thisRun.gapTimer = setTimeout(function () {
-                const fix = useLocation ? remoteFix : null;
-                thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, CHIME_END_TIMEOUT_MS);
-                thisRun.connector.playTimeAndDeploymentID(new Date(), null, fix ? fix.latitude : null, fix ? fix.longitude : null, remoteDeploymentId(command), function () {
-                    remoteChimeFinished(thisRun, command, play);
+                thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, CHIME_END_TIMEOUT_MS + REMOTE_WAIT_AFTER_TONE_MS);
+                thisRun.connector.playTimeAndDeploymentID(new Date(), null, location.latitude, location.longitude, remoteDeploymentId(command, argument), function () {
+                    if (run !== thisRun) return;
+                    thisRun.count += 1;
+                    finish(thisRun, function () { showStatus(thisRun.panel, TEXT.remotePlayed(name, thisRun.panel.notes)); });
                 });
             }, REMOTE_WAIT_AFTER_TONE_MS);
         });
     }
 
-    function sendRemote(panel, command) {
+    function sendRemote(panel, command, argument) {
         if (!RealAudioContext) {
             showStatus(panel, TEXT.noAudio, true);
             return;
         }
-        updateRemoteFix();
-        panel.button.textContent = TEXT.stop;
+        const location = readLocation(panel, 'x8-lat', 'x8-lon');
+        if (location === undefined) return;
+        panel.button.textContent = TEXT.remoteCancel;
         startRun(panel, function (started) {
             window.AudioContext = function () { return started.context; };
             started.connector = new window.AudioMothChimeConnector();
-            playRemote(started, command, 1);
+            playRemote(started, command, argument, location);
         });
     }
 
-    const remotePanels = {
-        start: {
+    /* All the X8 tab's command buttons share one status line. `notes` are the X8's beeps in
+       its headphones when the command works. */
+    function remotePanel(button, label, name, notes, command, argument) {
+        const panel = {
             section: element('panel-x8'),
-            button: element('x8-start'),
+            button: button,
             status: element('x8-remote-status'),
-            sendLabel: () => TEXT.remoteStart,
-            idleText: () => '',
-            send: function () { sendRemote(remotePanels.start, REMOTE_COMMAND_START); }
-        },
-        stop: {
-            section: element('panel-x8'),
-            button: element('x8-stop'),
-            status: element('x8-remote-status'),
-            sendLabel: () => TEXT.remoteStop,
-            idleText: () => '',
-            send: function () { sendRemote(remotePanels.stop, REMOTE_COMMAND_STOP); }
-        }
-    };
+            remote: true,
+            name: name,
+            notes: notes,
+            sendLabel: () => label,
+            /* The command buttons' shared status line starts with the caveat for Set X8 clock. */
+            idleText: () => TEXT.x8Idle,
+            send: function () { sendRemote(panel, command, argument); }
+        };
+        return panel;
+    }
+
+    const remotePanels = [
+        remotePanel(element('x8-clock'), TEXT.remoteClock, TEXT.remoteClock, TEXT.noteHigh, REMOTE_COMMAND_SET_CLOCK, 0),
+        remotePanel(element('x8-start'), TEXT.remoteStart, TEXT.remoteStart, TEXT.notesRising, REMOTE_COMMAND_START, 0),
+        remotePanel(element('x8-stop'), TEXT.remoteStop, TEXT.remoteStop, TEXT.notesFalling, REMOTE_COMMAND_STOP, 0)
+    ].concat(Array.from(document.querySelectorAll('#panel-x8 [data-mode]'), function (button) {
+        const mode = button.textContent;
+        return remotePanel(button, mode, TEXT.remoteMode(mode), TEXT.noteHigh, REMOTE_COMMAND_LISTEN, Number(button.dataset.mode));
+    }));
 
     /* Field checks. Each returns the value, or shows an error and returns undefined. */
 
@@ -755,6 +745,7 @@
         finish(thisRun, function () {
             /* Only a tab change can stop a chirp, and the PippyG tab then starts over. */
             if (thisRun.panel === panels.pippyg) showIdle(panels.pippyg);
+            else if (thisRun.panel.remote) showStatus(thisRun.panel, TEXT.remoteCancelled(thisRun.panel.name));
             else showStatus(thisRun.panel, thisRun.count === 0 ? TEXT.stoppedEarly : 'Stopped after ' + chimes(thisRun.count) + '.');
         });
     }
@@ -788,10 +779,9 @@
         });
     });
 
-    /* The other button is still a command, so it stops what is playing and plays its own. */
-    Object.values(remotePanels).forEach(function (panel) {
+    /* Another command button stops what is playing and plays its own. */
+    remotePanels.forEach(function (panel) {
         panel.button.textContent = panel.sendLabel();
-        showIdle(panel);
         panel.button.addEventListener('click', function () {
             const pressedAgain = run && run.panel === panel;
             if (run) stopRun();
@@ -799,7 +789,13 @@
             panel.status.scrollIntoView({ block: 'nearest' });
         });
     });
-    element('x8-location').addEventListener('change', updateRemoteFix);
+    showIdle(remotePanels[0]);
+    ['x8-lat', 'x8-lon'].forEach(function (id) {
+        element(id).addEventListener('input', function () {
+            if (!run && remotePanels[0].status.classList.contains('error')) showIdle(remotePanels[0]);
+        });
+    });
+    element('x8-locate').addEventListener('click', function () { useLocation(remotePanels[0], element('x8-locate'), 'x8-lat', 'x8-lon'); });
 
     element('am-clock-set').addEventListener('change', function () {
         saved.audiomothClockSet = element('am-clock-set').checked;
@@ -817,6 +813,7 @@
 
     showClock();
     const isPanel = function (name) { return Object.prototype.hasOwnProperty.call(panels, name); };
-    const linked = location.hash.slice(1);
+    /* The X8's QR code holds #x8; capitals too, in case a reader changes the case. */
+    const linked = location.hash.slice(1).toLowerCase();
     selectTab(isPanel(linked) ? linked : isPanel(saved.tab) ? saved.tab : 'x8', false);
 }());

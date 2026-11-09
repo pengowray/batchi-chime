@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Bat Recorder Setup</title>
-<link rel="stylesheet" href="setup.css?v=3">
+<link rel="stylesheet" href="setup.css?v=4">
 </head>
 <body>
 <main>
   <h1>Bat recorder setup by sound</h1>
 
   <p class="clock">
-    <span class="label">Phone's clock</span>
+    <span class="label">This device's clock</span>
     <span class="time" id="time"></span>
     <span class="date"><span id="date"></span>&nbsp; <span id="zone"></span></span>
   </p>
@@ -25,33 +25,56 @@
 
   <section id="panel-x8" role="tabpanel" aria-labelledby="tab-x8" hidden>
     <h2>Tascam X8 Oversample Bat Recorder</h2>
-    <h3>Start or stop recording</h3>
+    <button class="send" id="x8-clock" type="button"></button>
     <div class="remote-buttons">
-      <button class="send" id="x8-start" type="button"></button>
-      <button class="send" id="x8-stop" type="button"></button>
+      <button class="command" id="x8-start" type="button"></button>
+      <button class="command" id="x8-stop" type="button"></button>
+    </div>
+    <h3 id="x8-modes-label">Listening mode</h3>
+    <div class="mode-buttons" role="group" aria-labelledby="x8-modes-label">
+      <button class="command" type="button" data-mode="1">HET</button>
+      <button class="command" type="button" data-mode="2">COMB</button>
+      <button class="command" type="button" data-mode="3">FD</button>
+      <button class="command" type="button" data-mode="4">TE</button>
+      <button class="command" type="button" data-mode="6">1:1</button>
     </div>
     <p class="status" id="x8-remote-status" role="status"></p>
-    <label class="check"><input id="x8-location" type="checkbox"> Add my location to the chime</label>
-    <p class="hint">The chime that stops a recording is itself recorded. Later, on a computer, the <code>decode_wav</code> program reads its date, time, UTC offset and location from the WAV file.</p>
+
+    <div class="fields">
+      <label>Latitude
+        <input id="x8-lat" type="text" inputmode="text" autocomplete="off" placeholder="-90 to 90">
+      </label>
+      <label>Longitude
+        <input id="x8-lon" type="text" inputmode="text" autocomplete="off" placeholder="-180 to 180">
+      </label>
+    </div>
+    <p class="hint">Optional, in decimal degrees. The X8 saves the location in GUANO metadata and BAT_LOCATIONS.CSV.</p>
+    <button class="plain" id="x8-locate" type="button">Use this device&rsquo;s location</button>
+
     <ul class="help">
-      <li>Needs X8 firmware B239 or later, with Phone remote on under SETTINGS, Tools.</li>
-      <li>The X8 must show BAT DETECTOR, with HOLD off.</li>
-      <li>If REC PAUSE is on and the recorder is stopped, the X8 hears nothing. Press REC once first. After a stop by phone, the X8 goes back to standby by itself.</li>
-      <li>Play from the phone's own speaker, close to the X8's microphones.</li>
+      <li>On the X8: turn on Phone remote (X8 SETTINGS, Phone tab), open BAT DETECTOR, and slide HOLD off.</li>
+      <li>Notes in the X8&rsquo;s headphones:
+        <ul>
+          <li>Two rising: recording started</li>
+          <li>Two falling: recording stopped</li>
+          <li>One high: clock set or listening mode changed</li>
+          <li>One low: failed. The X8&rsquo;s screen shows the reason.</li>
+        </ul>
+      </li>
+      <li>With REC PAUSE on, a stopped X8 hears nothing: press REC once first.</li>
+      <li>Use this device&rsquo;s own speaker (not Bluetooth), volume up, 10 to 20&nbsp;cm from the X8&rsquo;s microphones.</li>
+      <li>If an iPhone plays nothing, check the silent switch or the Action button.</li>
+      <li>Set X8 clock and the Listening mode buttons need bat firmware B257 or later. B249 to B256 show &ldquo;Unknown phone command.&rdquo;</li>
     </ul>
 
     <h3>Chime test</h3>
-    <p class="note exception">The chime does not set the X8's clock yet.</p>
-    <p class="note">Firmware B235 or later: open BAT DETECTOR's settings with the menu button and tap Chime test. On B239 or later, tap Tools first. The X8 should then show a time within about 1&nbsp;s of the phone's clock above.</p>
-    <div class="send-bar in-flow"><button class="send" id="x8-send" type="button"></button></div>
+    <p class="hint">On the X8, open SETTINGS, Phone tab, Phone time.</p>
+    <button class="plain run" id="x8-send" type="button"></button>
     <p class="status" id="x8-status" role="status"></p>
-    <ul class="help">
-      <li>Hold the phone's speaker still, 10&nbsp;to&nbsp;20&nbsp;cm from the X8's microphones, with the volume up.</li>
-      <li>Use the phone's own speaker. Bluetooth adds delay and can remove the chime's 18&nbsp;kHz tone.</li>
-      <li>If you hear no tune, check silent mode. iPhones use a side switch or Action button.</li>
-      <li>To test a recording on any firmware, record the chime on the X8 at 192&nbsp;kHz. On a computer, run the <code>decode_wav</code> program on the WAV file.</li>
-    </ul>
-    <footer><a href="https://github.com/OpenAcousticDevices/AudioMoth-Chime">AudioMoth chime format</a> by Open Acoustic Devices, used under the <a href="LICENSE-audiomoth.txt">MIT licence</a>.</footer>
+    <footer>
+      <p>Source code on GitHub: <a href="https://github.com/pengowray/oversample-tascam-firmware">X8 bat firmware</a> &middot; <a href="https://github.com/pengowray/batchi-chime">this page</a></p>
+      <p><a href="https://github.com/OpenAcousticDevices/AudioMoth-Chime">AudioMoth chime format</a> by Open Acoustic Devices, used under the <a href="LICENSE-audiomoth.txt">MIT licence</a>.</p>
+    </footer>
   </section>
 
   <section id="panel-audiomoth" role="tabpanel" aria-labelledby="tab-audiomoth" hidden>
@@ -64,7 +87,7 @@
       </label>
     </div>
     <p class="hint">Decimal degrees. Optional: fill in both or neither.</p>
-    <button class="plain" id="am-locate" type="button">Use the phone's location</button>
+    <button class="plain" id="am-locate" type="button">Use this device&rsquo;s location</button>
 
     <div class="fields one">
       <label>Deployment ID
@@ -143,7 +166,7 @@
       </label>
     </div>
     <p class="hint">Optional, in decimal degrees. If both fields are blank, each recording's metadata has latitude 0, longitude 0.</p>
-    <button class="plain" id="pg-locate" type="button">Use the phone's location</button>
+    <button class="plain" id="pg-locate" type="button">Use this device&rsquo;s location</button>
 
     <label class="check"><input id="pg-noise" type="checkbox"> Noise Suppression</label>
     <p class="hint">Reduces false triggers from constant noise. Firmware 8 uses this setting. Firmware 10 ignores it.</p>
@@ -160,9 +183,9 @@
   </section>
 </main>
 
-<script src="audiomothchime.js?v=3"></script>
-<script src="audiomothchime_connector.js?v=3"></script>
-<script src="pippyg_chirp.js?v=3"></script>
-<script src="setup.js?v=3"></script>
+<script src="audiomothchime.js?v=4"></script>
+<script src="audiomothchime_connector.js?v=4"></script>
+<script src="pippyg_chirp.js?v=4"></script>
+<script src="setup.js?v=4"></script>
 </body>
 </html>
