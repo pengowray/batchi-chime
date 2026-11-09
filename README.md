@@ -40,13 +40,13 @@ node tools/chime_render.mjs --rate 192000 --unix 1793000000 --tz 660 --out chime
 
 ## The Tascam X8
 
-The X8's bat detector firmware and the chime decoder are in the `batchi-tascam-oversample-colab` repository, in `crates/x8-patch` and `crates/chime`. The chime decoder's tests use a render from `tools/chime_render.mjs`.
+The X8's bat detector firmware is in the [oversample-tascam-firmware](https://github.com/pengowray/oversample-tascam-firmware) repository, and the chime decoder in the `chime` crate of the [Oversample](https://github.com/pengowray/oversample) repository. The chime decoder's tests use a render from `tools/chime_render.mjs`.
 
 The Tascam X8 tab's buttons each play a 0.5 s tone, then a chime whose deployment ID holds the command, once. [docs/PHONE_REMOTE.md](https://github.com/pengowray/oversample-tascam-firmware/blob/main/docs/PHONE_REMOTE.md) in the firmware repository describes the format. The X8 needs Phone remote turned on (SETTINGS, Phone tab) and BAT DETECTOR open. Start recording and Stop recording work on firmware B249 and later; Set X8 clock and the listening mode buttons need B257 or later. Builds B239 to B248 used an earlier format and ignore this page's commands.
 
 The Chime test button plays plain chimes for 1 minute, for the X8's PHONE TIME screen (SETTINGS, Phone tab, Phone time; on B239 to B256, SETTINGS, Tests tab), which shows the time each chime holds.
 
-To test a recording on any firmware, record the chime on the X8 at 192 kHz, copy the WAV file to the computer, and run this in that repository:
+To test a recording on any firmware, record the chime on the X8 at 192 kHz, copy the WAV file to the computer, and run this in the Oversample repository:
 
 ```bash
 cargo run --release -p chime --example decode_wav -- FILE.wav
