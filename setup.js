@@ -368,8 +368,8 @@
         });
     }
 
-    /* The phone remote: a short tone, which wakes the X8's chime decoders, then a chime with
-       the command in its deployment ID. docs/PHONE_REMOTE.md in the oversample-tascam-firmware
+    /* The phone remote: 1 s of quiet noise for Bluetooth speakers, a short tone, which wakes
+       the X8's chime decoders, then a chime with the command in its deployment ID. docs/PHONE_REMOTE.md in the oversample-tascam-firmware
        repository is the format. Each press plays once. The commands set a state, so a press
        that the X8 did not hear can simply be pressed again. */
     const REMOTE_COMMAND_START = 1;
