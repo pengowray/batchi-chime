@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Bat Recorder Setup</title>
-<link rel="stylesheet" href="setup.css?v=4">
+<link rel="stylesheet" href="setup.css?v=5">
 </head>
 <body>
 <main>
@@ -49,7 +49,10 @@
       </label>
     </div>
     <p class="hint">Optional, in decimal degrees. The X8 saves the location in GUANO metadata and BAT_LOCATIONS.CSV.</p>
-    <button class="plain" id="x8-locate" type="button">Use this device&rsquo;s location</button>
+    <div class="location-buttons">
+      <button class="plain" id="x8-locate" type="button">Use this device&rsquo;s location</button>
+      <button class="plain" id="x8-clear" type="button" hidden>Clear location</button>
+    </div>
 
     <ul class="help">
       <li>On the X8: turn on Phone remote (X8 SETTINGS, Phone tab), open BAT DETECTOR, and slide HOLD off.</li>
@@ -87,7 +90,10 @@
       </label>
     </div>
     <p class="hint">Decimal degrees. Optional: fill in both or neither.</p>
-    <button class="plain" id="am-locate" type="button">Use this device&rsquo;s location</button>
+    <div class="location-buttons">
+      <button class="plain" id="am-locate" type="button">Use this device&rsquo;s location</button>
+      <button class="plain" id="am-clear" type="button" hidden>Clear location</button>
+    </div>
 
     <div class="fields one">
       <label>Deployment ID
@@ -166,7 +172,10 @@
       </label>
     </div>
     <p class="hint">Optional, in decimal degrees. If both fields are blank, each recording's metadata has latitude 0, longitude 0.</p>
-    <button class="plain" id="pg-locate" type="button">Use this device&rsquo;s location</button>
+    <div class="location-buttons">
+      <button class="plain" id="pg-locate" type="button">Use this device&rsquo;s location</button>
+      <button class="plain" id="pg-clear" type="button" hidden>Clear location</button>
+    </div>
 
     <label class="check"><input id="pg-noise" type="checkbox"> Noise Suppression</label>
     <p class="hint">Reduces false triggers from constant noise. Firmware 8 uses this setting. Firmware 10 ignores it.</p>
@@ -186,6 +195,6 @@
 <script src="audiomothchime.js?v=4"></script>
 <script src="audiomothchime_connector.js?v=4"></script>
 <script src="pippyg_chirp.js?v=4"></script>
-<script src="setup.js?v=4"></script>
+<script src="setup.js?v=5"></script>
 </body>
 </html>

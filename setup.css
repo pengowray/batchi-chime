@@ -113,6 +113,9 @@ input::placeholder { color: var(--muted); opacity: 1; }
   cursor: pointer;
 }
 
+/* Clear location shows only when a field has text, beside the button that fills them. */
+.location-buttons { display: flex; flex-wrap: wrap; column-gap: 8px; }
+
 /* The send button stays in view while the person scrolls through the fields. The
    band of page colour keeps the scrolled text clear of the button. */
 .send-bar { position: sticky; bottom: 0; z-index: 1; padding: 8px 0; background: var(--bg); }

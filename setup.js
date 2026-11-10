@@ -391,9 +391,43 @@
         return [0x42, 0x41, 0x54, 0x58, REMOTE_VERSION, command, argument & 0xff, argument >> 8].reverse();
     }
 
+    /* Quiet white noise before the tone. Bluetooth speakers and headphones often sleep
+       while silent and take a moment to wake, which would cut off the start of the tone.
+       White noise has no peak at 18 kHz, so it does not wake the X8's decoders itself. */
+    const LEAD_IN_MS = 1000;
+    const LEAD_IN_FADE_MS = 50;
+    const LEAD_IN_LEVEL = 0.03;
+
+    function playLeadIn(context, done) {
+        const length = Math.round(context.sampleRate * LEAD_IN_MS / 1000);
+        const fade = Math.round(context.sampleRate * LEAD_IN_FADE_MS / 1000);
+        const buffer = context.createBuffer(1, length, context.sampleRate);
+        const samples = buffer.getChannelData(0);
+        for (let i = 0; i < length; i += 1) {
+            /* Fades in and out, so the noise starts and ends without a click. */
+            const gain = Math.min(1, i / fade, (length - 1 - i) / fade);
+            samples[i] = (Math.random() * 2 - 1) * LEAD_IN_LEVEL * gain;
+        }
+        const source = context.createBufferSource();
+        source.buffer = buffer;
+        source.connect(context.destination);
+        source.onended = done;
+        source.start();
+    }
+
     function playRemote(thisRun, command, argument, location) {
         const name = thisRun.panel.name;
         showStatus(thisRun.panel, TEXT.remotePlaying(name));
+        thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, LEAD_IN_MS + CHIME_END_TIMEOUT_MS);
+        playLeadIn(thisRun.context, function () {
+            if (run !== thisRun) return;
+            clearTimeout(thisRun.endTimer);
+            playRemoteTone(thisRun, command, argument, location);
+        });
+    }
+
+    function playRemoteTone(thisRun, command, argument, location) {
+        const name = thisRun.panel.name;
         thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, REMOTE_TONE_MS + CHIME_END_TIMEOUT_MS);
         thisRun.connector.playTone(REMOTE_TONE_MS, function () {
             if (run !== thisRun) return;
@@ -703,6 +737,7 @@
             endLookup(function () {
                 element(latitudeField).value = position.coords.latitude.toFixed(6);
                 element(longitudeField).value = position.coords.longitude.toFixed(6);
+                element(latitudeField).dispatchEvent(new Event('input'));
                 showIdle(panel);
             });
         }, function (error) {
@@ -710,6 +745,22 @@
                 showLocationError(error.code === error.PERMISSION_DENIED ? TEXT.locationRefused : TEXT.locationNotFound);
             });
         }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+    }
+
+    /* Clear location empties both fields. The input event lets each tab's own
+       listeners update its status line, as typing would. */
+    function setUpClearLocation(prefix) {
+        const fields = [element(prefix + '-lat'), element(prefix + '-lon')];
+        const clear = element(prefix + '-clear');
+        function showClear() {
+            clear.hidden = fields.every(function (field) { return field.value.trim() === ''; });
+        }
+        fields.forEach(function (field) { field.addEventListener('input', showClear); });
+        clear.addEventListener('click', function () {
+            fields.forEach(function (field) { field.value = ''; });
+            fields[0].dispatchEvent(new Event('input'));
+        });
+        showClear();
     }
 
     function useRandomId() {
@@ -810,6 +861,7 @@
     element('am-locate').addEventListener('click', function () { useLocation(panels.audiomoth, element('am-locate'), 'am-lat', 'am-lon'); });
     element('pg-locate').addEventListener('click', function () { useLocation(panels.pippyg, element('pg-locate'), 'pg-lat', 'pg-lon'); });
     element('am-random').addEventListener('click', useRandomId);
+    ['x8', 'am', 'pg'].forEach(setUpClearLocation);
 
     showClock();
     const isPanel = function (name) { return Object.prototype.hasOwnProperty.call(panels, name); };
