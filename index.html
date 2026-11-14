@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Bat Recorder Setup</title>
-<link rel="stylesheet" href="setup.css?v=7">
+<link rel="stylesheet" href="setup.css?v=8">
 </head>
 <body>
 <main>
@@ -24,14 +24,7 @@
   </div>
 
   <section id="panel-x8" role="tabpanel" aria-labelledby="tab-x8" hidden>
-    <div class="code-row" id="x8-code-row">
-      <label for="x8-code">X8 code</label>
-      <input id="x8-code" type="text" inputmode="numeric" autocomplete="off" maxlength="9" placeholder="6 digits" aria-describedby="x8-code-state">
-      <p class="code-state" id="x8-code-state" role="status">
-        <strong><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" hidden><path d="M2.5 8.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="x8-code-state-name"></span></strong>
-        <span id="x8-code-state-detail"></span>
-      </p>
-    </div>
+    <p class="code-banner" id="x8-code-banner" hidden><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2.5 8.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="x8-code-banner-text"></span></p>
     <button class="send" id="x8-clock" type="button"></button>
     <div class="remote-buttons">
       <button class="command" id="x8-start" type="button"></button>
@@ -46,6 +39,15 @@
       <button class="command" type="button" data-mode="6">1:1</button>
     </div>
     <p class="status" id="x8-remote-status" role="status"></p>
+
+    <div class="code-row" id="x8-code-row">
+      <label for="x8-code">X8 code (optional)</label>
+      <input id="x8-code" type="text" inputmode="numeric" autocomplete="off" maxlength="9" placeholder="6 digits" aria-describedby="x8-code-state">
+      <p class="code-state" id="x8-code-state" role="status">
+        <strong><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" hidden><path d="M2.5 8.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="x8-code-state-name"></span></strong>
+        <span id="x8-code-state-detail"></span>
+      </p>
+    </div>
 
     <h3>Location for the recordings (optional)</h3>
     <div class="fields">
@@ -202,6 +204,6 @@
 <script src="audiomothchime_connector.js?v=4"></script>
 <script src="pippyg_chirp.js?v=4"></script>
 <script src="x8_remote.js?v=2"></script>
-<script src="setup.js?v=8"></script>
+<script src="setup.js?v=9"></script>
 </body>
 </html>

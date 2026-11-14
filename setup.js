@@ -26,7 +26,8 @@
             return name + ': chime played ' + how + '. Listen for ' + notes + ' from the X8.';
         },
         codeUnused: 'Not in use',
-        codeUnusedDetail: 'The X8 shows the code on its Phone tab.',
+        codeUnusedDetail: 'Only if the X8 asks for a code. Its Phone tab shows it.',
+        codeBanner: function (code) { return 'Code ' + codeText(code) + ' in use'; },
         codeInUse: 'In use',
         codeInUseDetail: 'Sent with every command.',
         codeShort: 'Needs 6 digits',
@@ -463,6 +464,7 @@
         }
         const code = readCode(panel);
         if (code === undefined) return;
+        showCodeBanner();
         const location = readLocation(panel, 'x8-lat', 'x8-lon');
         if (location === undefined) return;
         panel.button.textContent = TEXT.remoteCancel;
@@ -535,6 +537,14 @@
         element('x8-code-row').querySelector('svg').toggleAttribute('hidden', state !== 'in-use');
         element('x8-code-state-name').textContent = state === 'unused' ? TEXT.codeUnused : state === 'short' ? TEXT.codeShort : TEXT.codeInUse;
         element('x8-code-state-detail').textContent = state === 'in-use' ? TEXT.codeInUseDetail : TEXT.codeUnusedDetail;
+    }
+
+    /* Above the command buttons while a code is in use. It follows the field when the
+       field is left, not at each key, so the buttons do not move while the code is typed. */
+    function showCodeBanner() {
+        const digits = window.X8Remote.codeDigits(element('x8-code').value.trim());
+        element('x8-code-banner').hidden = digits === null;
+        if (digits !== null) element('x8-code-banner-text').textContent = TEXT.codeBanner(digits);
     }
 
     /* Returns { latitude, longitude }, both null when both fields are blank. */
@@ -881,6 +891,8 @@
        where it can be seen, and the X8's screen shows the new one when it refuses the old. */
     element('x8-code').value = typeof saved.x8Code === 'string' ? saved.x8Code : '';
     showCodeState();
+    showCodeBanner();
+    element('x8-code').addEventListener('change', showCodeBanner);
     element('x8-code').addEventListener('input', function () {
         showCodeState();
         saved.x8Code = element('x8-code').value.trim();
