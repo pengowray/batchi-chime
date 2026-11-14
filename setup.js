@@ -2,8 +2,8 @@
 
 /* Plays chimes (unmodified AudioMoth library) and chirps (pippyg_chirp.js) from
    the three recorder tabs. Saved in this browser: the selected tab and the
-   PippyG and clock-set choices. Location and deployment ID are never saved,
-   because a stale one would go into recordings without anyone noticing. */
+   PippyG and clock-set choices, and the X8 code. Location and deployment ID are
+   never saved, because a stale one would go into recordings without anyone noticing. */
 (function () {
     const TEXT = {
         play: 'Play chimes for 1 minute',
@@ -21,7 +21,17 @@
         remoteCancel: 'Cancel',
         remoteMode: function (mode) { return 'Listening mode ' + mode; },
         remotePlaying: function (name) { return name + ': playing chime\u2026'; },
-        remotePlayed: function (name, notes) { return name + ': chime played. Listen for ' + notes + ' from the X8.'; },
+        remotePlayed: function (name, notes, code) {
+            const how = code ? 'with code ' + codeText(code) : 'without a code';
+            return name + ': chime played ' + how + '. Listen for ' + notes + ' from the X8.';
+        },
+        codeUnused: 'Not in use',
+        codeUnusedDetail: 'The X8 shows the code on its Phone tab.',
+        codeInUse: 'In use',
+        codeInUseDetail: 'Sent with every command.',
+        codeShort: 'Needs 6 digits',
+        codeInvalid: "X8 code not valid: enter the 6 digits on the X8's Phone tab, or clear the field.",
+        codeInsecure: 'Secure page needed: this browser can send a code only on https. Clear the X8 code to send commands without one.',
         remoteCancelled: function (name) { return name + ': cancelled.'; },
         notesRising: 'two rising notes',
         notesFalling: 'two falling notes',
@@ -42,6 +52,11 @@
         idNotHex: 'Deployment ID not hexadecimal: use only 0 to 9 and A to F.',
         deviceIdInvalid: 'Device ID not valid: enter a whole number from 0 to 255.'
     };
+
+    /* As the X8 shows it: two groups of 3 digits. */
+    function codeText(digits) {
+        return digits.slice(0, 3) + ' ' + digits.slice(3);
+    }
 
     function chimes(count) {
         return count === 1 ? '1 chime' : count + ' chimes';
@@ -381,15 +396,6 @@
        for 6 s after the tone. */
     const REMOTE_WAIT_AFTER_TONE_MS = 800;
 
-    /* The deployment ID as the X8 reads it: "BATX", format version 1, the command, and a
-       16-bit argument (the listening mode, or 0), low byte first. The connector sends the ID's
-       bytes in reverse order, so they are reversed here first. */
-    const REMOTE_VERSION = 1;
-
-    function remoteDeploymentId(command, argument) {
-        return [0x42, 0x41, 0x54, 0x58, REMOTE_VERSION, command, argument & 0xff, argument >> 8].reverse();
-    }
-
     /* Quiet white noise before the tone. Bluetooth speakers and headphones often sleep
        while silent and take a moment to wake, which would cut off the start of the tone.
        White noise has no peak at 18 kHz, so it does not wake the X8's decoders itself. */
@@ -414,18 +420,19 @@
         source.start();
     }
 
-    function playRemote(thisRun, command, argument, location) {
+    function playRemote(thisRun, command, argument, location, code) {
         const name = thisRun.panel.name;
         showStatus(thisRun.panel, TEXT.remotePlaying(name));
         thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, LEAD_IN_MS + CHIME_END_TIMEOUT_MS);
         playLeadIn(thisRun.context, function () {
             if (run !== thisRun) return;
             clearTimeout(thisRun.endTimer);
-            playRemoteTone(thisRun, command, argument, location);
+            playRemoteTone(thisRun, command, argument, location, code);
         });
     }
 
-    function playRemoteTone(thisRun, command, argument, location) {
+    /* `code` is the X8 code's 6 digits, or null to send the command without one. */
+    function playRemoteTone(thisRun, command, argument, location, code) {
         const name = thisRun.panel.name;
         thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, REMOTE_TONE_MS + CHIME_END_TIMEOUT_MS);
         thisRun.connector.playTone(REMOTE_TONE_MS, function () {
@@ -433,11 +440,22 @@
             clearTimeout(thisRun.endTimer);
             thisRun.gapTimer = setTimeout(function () {
                 thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, CHIME_END_TIMEOUT_MS + REMOTE_WAIT_AFTER_TONE_MS);
-                thisRun.connector.playTimeAndDeploymentID(new Date(), null, location.latitude, location.longitude, remoteDeploymentId(command, argument), function () {
+                /* The check in a coded ID covers the chime's time, so the time is fixed here,
+                   before the check is made. Making it takes a few milliseconds, and the
+                   connector starts the chime at least 200 ms after `date`. */
+                const date = new Date();
+                const time = window.X8Remote.chimeTime(date);
+                const id = code ? window.X8Remote.codedId(code, command, argument, time.unixTime, time.utcOffsetMinutes)
+                    : Promise.resolve(window.X8Remote.plainId(command, argument));
+                id.then(function (bytes) {
                     if (run !== thisRun) return;
-                    thisRun.count += 1;
-                    finish(thisRun, function () { showStatus(thisRun.panel, TEXT.remotePlayed(name, thisRun.panel.notes)); });
-                });
+                    /* The connector sends the ID's bytes in reverse order. */
+                    thisRun.connector.playTimeAndDeploymentID(date, time.utcOffsetMinutes, location.latitude, location.longitude, bytes.slice().reverse(), function () {
+                        if (run !== thisRun) return;
+                        thisRun.count += 1;
+                        finish(thisRun, function () { showStatus(thisRun.panel, TEXT.remotePlayed(name, thisRun.panel.notes, code)); });
+                    });
+                }).catch(function () { failRun(thisRun); });
             }, REMOTE_WAIT_AFTER_TONE_MS);
         });
     }
@@ -447,13 +465,15 @@
             showStatus(panel, TEXT.noAudio, true);
             return;
         }
+        const code = readCode(panel);
+        if (code === undefined) return;
         const location = readLocation(panel, 'x8-lat', 'x8-lon');
         if (location === undefined) return;
         panel.button.textContent = TEXT.remoteCancel;
         startRun(panel, function (started) {
             window.AudioContext = function () { return started.context; };
             started.connector = new window.AudioMothChimeConnector();
-            playRemote(started, command, argument, location);
+            playRemote(started, command, argument, location, code);
         });
     }
 
@@ -497,6 +517,29 @@
     /* Number() alone also accepts forms such as 0x10 and 1e1. */
     function decimalNumber(text) {
         return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(text) ? Number(text) : NaN;
+    }
+
+    /* Returns the X8 code's 6 digits, or null when the field is blank. A code that is not
+       6 digits stops the command, because sending it without a code would look the same
+       on this page as sending it with one. */
+    function readCode(panel) {
+        const text = element('x8-code').value.trim();
+        if (text === '') return null;
+        const digits = window.X8Remote.codeDigits(text);
+        if (digits === null) return fieldError(panel, 'x8-code', TEXT.codeInvalid);
+        if (!window.X8Remote.canCode()) return fieldError(panel, 'x8-code', TEXT.codeInsecure);
+        return digits;
+    }
+
+    /* Beside the code field at all times: whether commands go with the code. */
+    function showCodeState() {
+        const text = element('x8-code').value.trim();
+        const digits = window.X8Remote.codeDigits(text);
+        const state = text === '' ? 'unused' : digits === null ? 'short' : 'in-use';
+        element('x8-code-row').dataset.state = state;
+        element('x8-code-row').querySelector('svg').toggleAttribute('hidden', state !== 'in-use');
+        element('x8-code-state-name').textContent = state === 'unused' ? TEXT.codeUnused : state === 'short' ? TEXT.codeShort : TEXT.codeInUse;
+        element('x8-code-state-detail').textContent = state === 'in-use' ? TEXT.codeInUseDetail : TEXT.codeUnusedDetail;
     }
 
     /* Returns { latitude, longitude }, both null when both fields are blank. */
@@ -839,7 +882,16 @@
         });
     });
     showIdle(remotePanels[0]);
-    ['x8-lat', 'x8-lon'].forEach(function (id) {
+    /* The X8 makes a new code each time it is powered on. The old one stays in the field,
+       where it can be seen, and the X8's screen shows the new one when it refuses the old. */
+    element('x8-code').value = typeof saved.x8Code === 'string' ? saved.x8Code : '';
+    showCodeState();
+    element('x8-code').addEventListener('input', function () {
+        showCodeState();
+        saved.x8Code = element('x8-code').value.trim();
+        save();
+    });
+    ['x8-code', 'x8-lat', 'x8-lon'].forEach(function (id) {
         element(id).addEventListener('input', function () {
             if (!run && remotePanels[0].status.classList.contains('error')) showIdle(remotePanels[0]);
         });

@@ -44,6 +44,12 @@ The X8's bat detector firmware is in the [oversample-tascam-firmware](https://gi
 
 The Tascam X8 tab's buttons each play a 0.5 s tone, then a chime whose deployment ID holds the command, once. [docs/PHONE_REMOTE.md](https://github.com/pengowray/oversample-tascam-firmware/blob/main/docs/PHONE_REMOTE.md) in the firmware repository describes the format. The X8 needs Phone remote turned on (SETTINGS, Phone tab) and BAT DETECTOR open. Start recording and Stop recording work on firmware B249 and later; Set X8 clock and the listening mode buttons need B257 or later. Builds B239 to B248 used an earlier format and ignore this page's commands.
 
+From firmware B273, the X8 shows a 6-digit code on its Phone tab and acts only on commands sent with that code. Type the code into the X8 code field; the page shows "In use" beside the field and sends a check made from the code with every command (`x8_remote.js`). With the field empty, the page sends the earlier format with no code, which B249 to B272 read. The X8 makes a new code each time it is powered on. To test the IDs this page sends against the firmware's test vectors:
+
+```bash
+node --test tools/test_x8_remote.mjs
+```
+
 The Chime test button plays plain chimes for 1 minute, for the X8's PHONE TIME screen (SETTINGS, Phone tab, Phone time; on B239 to B256, SETTINGS, Tests tab), which shows the time each chime holds.
 
 To test a recording on any firmware, record the chime on the X8 at 192 kHz, copy the WAV file to the computer, and run this in the Oversample repository:
