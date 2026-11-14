@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Bat Recorder Setup</title>
-<link rel="stylesheet" href="setup.css?v=5">
+<link rel="stylesheet" href="setup.css?v=6">
 </head>
 <body>
 <main>
@@ -24,7 +24,6 @@
   </div>
 
   <section id="panel-x8" role="tabpanel" aria-labelledby="tab-x8" hidden>
-    <h2>Tascam X8 Oversample Bat Recorder</h2>
     <button class="send" id="x8-clock" type="button"></button>
     <div class="remote-buttons">
       <button class="command" id="x8-start" type="button"></button>
@@ -40,6 +39,7 @@
     </div>
     <p class="status" id="x8-remote-status" role="status"></p>
 
+    <h3>Location for the recordings (optional)</h3>
     <div class="fields">
       <label>Latitude
         <input id="x8-lat" type="text" inputmode="text" autocomplete="off" placeholder="-90 to 90">
@@ -48,32 +48,30 @@
         <input id="x8-lon" type="text" inputmode="text" autocomplete="off" placeholder="-180 to 180">
       </label>
     </div>
-    <p class="hint">Optional, in decimal degrees. The X8 saves the location in GUANO metadata and BAT_LOCATIONS.CSV.</p>
     <div class="location-buttons">
       <button class="plain" id="x8-locate" type="button">Use this device&rsquo;s location</button>
       <button class="plain" id="x8-clear" type="button" hidden>Clear location</button>
     </div>
 
-    <ul class="help">
-      <li>On the X8: turn on Phone remote (X8 SETTINGS, Phone tab), open BAT DETECTOR, and slide HOLD off.</li>
-      <li>Notes in the X8&rsquo;s headphones:
-        <ul>
-          <li>Two rising: recording started</li>
-          <li>Two falling: recording stopped</li>
-          <li>One high: clock set or listening mode changed</li>
-          <li>One low: failed. The X8&rsquo;s screen shows the reason.</li>
-        </ul>
-      </li>
-      <li>With REC PAUSE on, a stopped X8 hears nothing: press REC once first.</li>
-      <li>Use this device&rsquo;s own speaker if you can, volume up, 10 to 20&nbsp;cm from the X8&rsquo;s microphones. Some Bluetooth speakers and headphones can&rsquo;t play the 18&nbsp;kHz tone, and the Bluetooth delay sets the X8&rsquo;s clock a fraction of a second late.</li>
-      <li>If an iPhone plays nothing, check the silent switch or the Action button.</li>
-      <li>Set X8 clock and the Listening mode buttons need bat firmware B257 or later. B249 to B256 show &ldquo;Unknown phone command.&rdquo;</li>
-    </ul>
+    <details>
+      <summary>Setup and problems</summary>
+      <ul class="help">
+        <li>On the X8: open SETTINGS, Phone tab, and turn on Phone remote. Open BAT DETECTOR. Slide HOLD off.</li>
+        <li>Hold this device 10 to 20&nbsp;cm from the X8&rsquo;s microphones, with the volume up.</li>
+        <li>One low note from the X8: the command failed. The X8&rsquo;s screen shows the reason.</li>
+        <li>REC PAUSE is on and the X8 is stopped: press REC once first.</li>
+        <li>Bluetooth speakers: some can&rsquo;t play the 18&nbsp;kHz tone, and all set the X8&rsquo;s clock a fraction of a second late.</li>
+        <li>iPhone plays nothing: check the silent switch or the Action button.</li>
+        <li>Firmware: Set X8 clock and Listening mode need bat firmware B257 or later.</li>
+      </ul>
+    </details>
 
-    <h3>Chime test</h3>
-    <p class="hint">On the X8, open SETTINGS, Phone tab, Phone time.</p>
-    <button class="plain run" id="x8-send" type="button"></button>
-    <p class="status" id="x8-status" role="status"></p>
+    <details>
+      <summary>Chime test</summary>
+      <p class="hint">On the X8, open SETTINGS, Phone tab, Phone time.</p>
+      <button class="plain run" id="x8-send" type="button"></button>
+      <p class="status" id="x8-status" role="status"></p>
+    </details>
     <footer>
       <p>Source code on GitHub: <a href="https://github.com/pengowray/oversample-tascam-firmware">X8 bat firmware</a> &middot; <a href="https://github.com/pengowray/batchi-chime">this page</a></p>
       <p><a href="https://github.com/OpenAcousticDevices/AudioMoth-Chime">AudioMoth chime format</a> by Open Acoustic Devices, used under the <a href="LICENSE-audiomoth.txt">MIT licence</a>.</p>
@@ -195,6 +193,6 @@
 <script src="audiomothchime.js?v=4"></script>
 <script src="audiomothchime_connector.js?v=4"></script>
 <script src="pippyg_chirp.js?v=4"></script>
-<script src="setup.js?v=5"></script>
+<script src="setup.js?v=6"></script>
 </body>
 </html>

@@ -26,7 +26,6 @@
         notesRising: 'two rising notes',
         notesFalling: 'two falling notes',
         noteHigh: 'one high note',
-        x8Idle: "This device's clock needs to be right. The chime contains its date and time.",
         chirp: 'Play settings chirp',
         chirpAgain: 'Play settings chirp again',
         chirpIdle: "This device's clock needs to be right. The chirp contains its local time and the settings above.",
@@ -469,8 +468,7 @@
             name: name,
             notes: notes,
             sendLabel: () => label,
-            /* The command buttons' shared status line starts with the caveat for Set X8 clock. */
-            idleText: () => TEXT.x8Idle,
+            idleText: () => '',
             send: function () { sendRemote(panel, command, argument); }
         };
         return panel;

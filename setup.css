@@ -115,6 +115,8 @@ input::placeholder { color: var(--muted); opacity: 1; }
 
 /* Clear location shows only when a field has text, beside the button that fills them. */
 .location-buttons { display: flex; flex-wrap: wrap; column-gap: 8px; }
+/* With no hint line between them, the buttons need their own gap below the fields. */
+.fields + .location-buttons { margin-top: 12px; }
 
 /* The send button stays in view while the person scrolls through the fields. The
    band of page colour keeps the scrolled text clear of the button. */
@@ -163,6 +165,13 @@ h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
 /* The X8's own mode names, in the order of its mode buttons. */
 .mode-buttons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .mode-buttons + .status { margin-top: 8px; }
+
+/* Setup help and the chime test are needed once or rarely, so they are closed until asked for.
+   The summary is as tall as the other controls, for a thumb. */
+details { margin: 0 0 12px; border-top: 1px solid var(--line); }
+summary { min-height: 44px; padding: 10px 0; font-weight: 600; cursor: pointer; }
+summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+details .plain { margin-top: 0; }
 
 .note { margin: 0 0 16px; }
 /* What the reader would not assume: the recorder can't use the sound yet, or nobody has tested it. */
