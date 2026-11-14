@@ -31,7 +31,7 @@
         codeInUseDetail: 'Sent with every command.',
         codeShort: 'Needs 6 digits',
         codeInvalid: "X8 code not valid: enter the 6 digits on the X8's Phone tab, or clear the field.",
-        codeInsecure: 'Secure page needed: this browser can send a code only on https. Clear the X8 code to send commands without one.',
+
         remoteCancelled: function (name) { return name + ': cancelled.'; },
         notesRising: 'two rising notes',
         notesFalling: 'two falling notes',
@@ -440,22 +440,18 @@
             clearTimeout(thisRun.endTimer);
             thisRun.gapTimer = setTimeout(function () {
                 thisRun.endTimer = setTimeout(function () { failRun(thisRun); }, CHIME_END_TIMEOUT_MS + REMOTE_WAIT_AFTER_TONE_MS);
-                /* The check in a coded ID covers the chime's time, so the time is fixed here,
-                   before the check is made. Making it takes a few milliseconds, and the
-                   connector starts the chime at least 200 ms after `date`. */
+                /* The check in a coded ID covers the chime's time, so the page works out the
+                   time the connector will send and gives the connector the same offset. */
                 const date = new Date();
                 const time = window.X8Remote.chimeTime(date);
                 const id = code ? window.X8Remote.codedId(code, command, argument, time.unixTime, time.utcOffsetMinutes)
-                    : Promise.resolve(window.X8Remote.plainId(command, argument));
-                id.then(function (bytes) {
+                    : window.X8Remote.plainId(command, argument);
+                /* The connector sends the ID's bytes in reverse order. */
+                thisRun.connector.playTimeAndDeploymentID(date, time.utcOffsetMinutes, location.latitude, location.longitude, id.slice().reverse(), function () {
                     if (run !== thisRun) return;
-                    /* The connector sends the ID's bytes in reverse order. */
-                    thisRun.connector.playTimeAndDeploymentID(date, time.utcOffsetMinutes, location.latitude, location.longitude, bytes.slice().reverse(), function () {
-                        if (run !== thisRun) return;
-                        thisRun.count += 1;
-                        finish(thisRun, function () { showStatus(thisRun.panel, TEXT.remotePlayed(name, thisRun.panel.notes, code)); });
-                    });
-                }).catch(function () { failRun(thisRun); });
+                    thisRun.count += 1;
+                    finish(thisRun, function () { showStatus(thisRun.panel, TEXT.remotePlayed(name, thisRun.panel.notes, code)); });
+                });
             }, REMOTE_WAIT_AFTER_TONE_MS);
         });
     }
@@ -527,7 +523,6 @@
         if (text === '') return null;
         const digits = window.X8Remote.codeDigits(text);
         if (digits === null) return fieldError(panel, 'x8-code', TEXT.codeInvalid);
-        if (!window.X8Remote.canCode()) return fieldError(panel, 'x8-code', TEXT.codeInsecure);
         return digits;
     }
 

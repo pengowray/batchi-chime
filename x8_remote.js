@@ -36,11 +36,55 @@
         return /^\d{6}$/.test(digits) ? digits : null;
     }
 
+    /* SipHash-2-4 with a 64-bit result, by Aumasson and Bernstein: a keyed hash made for
+       short messages, small enough for the X8's patch. `key` is 16 bytes. BigInt does the
+       64-bit arithmetic. */
+    const MASK = (1n << 64n) - 1n;
+
+    function rotl(x, bits) {
+        return ((x << bits) | (x >> (64n - bits))) & MASK;
+    }
+
+    function word(bytes, at) {
+        let value = 0n;
+        for (let i = 7; i >= 0; i -= 1) value = (value << 8n) | BigInt(bytes[at + i]);
+        return value;
+    }
+
+    function sipHash24(key, message) {
+        const k0 = word(key, 0);
+        const k1 = word(key, 8);
+        let v0 = k0 ^ 0x736f6d6570736575n;
+        let v1 = k1 ^ 0x646f72616e646f6dn;
+        let v2 = k0 ^ 0x6c7967656e657261n;
+        let v3 = k1 ^ 0x7465646279746573n;
+        function round() {
+            v0 = (v0 + v1) & MASK; v1 = rotl(v1, 13n); v1 ^= v0; v0 = rotl(v0, 32n);
+            v2 = (v2 + v3) & MASK; v3 = rotl(v3, 16n); v3 ^= v2;
+            v0 = (v0 + v3) & MASK; v3 = rotl(v3, 21n); v3 ^= v0;
+            v2 = (v2 + v1) & MASK; v1 = rotl(v1, 17n); v1 ^= v2; v2 = rotl(v2, 32n);
+        }
+        /* The message, zeros up to 1 byte short of a multiple of 8, then its length. */
+        const padded = new Uint8Array((Math.floor(message.length / 8) + 1) * 8);
+        padded.set(message);
+        padded[padded.length - 1] = message.length & 0xff;
+        for (let at = 0; at < padded.length; at += 8) {
+            const m = word(padded, at);
+            v3 ^= m;
+            round();
+            round();
+            v0 ^= m;
+        }
+        v2 ^= 0xffn;
+        for (let i = 0; i < 4; i += 1) round();
+        return v0 ^ v1 ^ v2 ^ v3;
+    }
+
     /* Version 2, with a code: "BATX", 2, the command and argument in one byte, and a
-       2-byte check. The check is the first 2 bytes of HMAC-SHA1, keyed with the code's 6
-       ASCII digits, over the ID's first 6 bytes, the chime's Unix time (4 bytes) and its
-       UTC offset in minutes (2 bytes), both low byte first. Bat firmware B273 and later
-       reads it. Resolves to the 8 bytes. */
+       2-byte check. The check is the low 2 bytes, low byte first, of SipHash-2-4 over the
+       ID's first 6 bytes, the chime's Unix time (4 bytes) and its UTC offset in minutes
+       (2 bytes), both low byte first. The key is the code's 6 ASCII digits, then 10 zero
+       bytes. Bat firmware B273 and later reads it. Returns the 8 bytes. */
     function codedId(digits, command, argument, unixTime, utcOffsetMinutes) {
         const head = MAGIC.concat([2, (command << 4) | (argument & 0x0f)]);
         const message = new Uint8Array(12);
@@ -48,20 +92,11 @@
         const view = new DataView(message.buffer);
         view.setUint32(6, unixTime, true);
         view.setInt16(10, utcOffsetMinutes, true);
-        const key = Uint8Array.from(digits, function (digit) { return digit.charCodeAt(0); });
-        const subtle = root.crypto.subtle;
-        return subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign'])
-            .then(function (hmacKey) { return subtle.sign('HMAC', hmacKey, message); })
-            .then(function (digest) {
-                const check = new Uint8Array(digest);
-                return head.concat([check[0], check[1]]);
-            });
+        const key = new Uint8Array(16);
+        for (let i = 0; i < 6; i += 1) key[i] = digits.charCodeAt(i);
+        const hash = sipHash24(key, message);
+        return head.concat([Number(hash & 0xffn), Number((hash >> 8n) & 0xffn)]);
     }
 
-    /* Browsers offer this only on https and localhost. */
-    function canCode() {
-        return Boolean(root.crypto && root.crypto.subtle);
-    }
-
-    root.X8Remote = { chimeTime: chimeTime, plainId: plainId, codeDigits: codeDigits, codedId: codedId, canCode: canCode };
+    root.X8Remote = { chimeTime: chimeTime, plainId: plainId, codeDigits: codeDigits, codedId: codedId, sipHash24: sipHash24 };
 }(typeof window === 'undefined' ? globalThis : window));

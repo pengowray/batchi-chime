@@ -25,10 +25,16 @@ test('a command with no code is version 1, as B249 to B272 read it', () => {
     assert.equal(hex(X.plainId(4, 6)), '42 41 54 58 01 04 06 00');
 });
 
-test('a command with a code matches the chime crate', async () => {
-    assert.equal(hex(await X.codedId('493817', 1, 0, 1794700800, 600)), '42 41 54 58 02 10 f1 d9');
-    assert.equal(hex(await X.codedId('493817', 4, 6, 1794700801, -300)), '42 41 54 58 02 46 a1 10');
-    assert.equal(hex(await X.codedId('000000', 3, 0, 0, 0)), '42 41 54 58 02 30 a3 b0');
+test('SipHash-2-4 gives its published reference value', () => {
+    const key = Uint8Array.from({ length: 16 }, (_, i) => i);
+    const message = Uint8Array.from({ length: 15 }, (_, i) => i);
+    assert.equal(X.sipHash24(key, message), 0xa129ca6149be45e5n);
+});
+
+test('a command with a code matches the chime crate', () => {
+    assert.equal(hex(X.codedId('493817', 1, 0, 1794700800, 600)), '42 41 54 58 02 10 ba f3');
+    assert.equal(hex(X.codedId('493817', 4, 6, 1794700801, -300)), '42 41 54 58 02 46 b0 ad');
+    assert.equal(hex(X.codedId('000000', 3, 0, 0, 0)), '42 41 54 58 02 30 6b 0a');
 });
 
 test('a code is 6 digits, with or without spaces', () => {
