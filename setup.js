@@ -19,6 +19,8 @@
         remoteStart: 'Start recording',
         remoteStop: 'Stop recording',
         remoteCancel: 'Cancel',
+        /* After "Start recording" in the status line, by the Headphones while recording choice. */
+        remoteStartMute: ['', ', headphones muted', ', headphones playing'],
         remoteMode: function (mode) { return 'Listening mode ' + mode; },
         remotePlaying: function (name) { return name + ': playing chime\u2026'; },
         remotePlayed: function (name, notes, code) {
@@ -457,6 +459,12 @@
         });
     }
 
+    /* Start recording's argument: 0 leaves the X8's Mute while recording switch as it is,
+       1 turns it on and 2 turns it off. */
+    function muteChoice() {
+        return Number(document.querySelector('input[name="x8-mute"]:checked').value);
+    }
+
     function sendRemote(panel, command, argument) {
         if (!RealAudioContext) {
             showStatus(panel, TEXT.noAudio, true);
@@ -487,7 +495,12 @@
             notes: notes,
             sendLabel: () => label,
             idleText: () => '',
-            send: function () { sendRemote(panel, command, argument); }
+            send: function () {
+                /* Start recording reads its argument and its name in the status line at the press. */
+                const mute = command === REMOTE_COMMAND_START ? muteChoice() : 0;
+                panel.name = name + TEXT.remoteStartMute[mute];
+                sendRemote(panel, command, command === REMOTE_COMMAND_START ? mute : argument);
+            }
         };
         return panel;
     }
@@ -889,6 +902,13 @@
     showIdle(remotePanels[0]);
     /* The X8 makes a new code each time it is powered on. The old one stays in the field,
        where it can be seen, and the X8's screen shows the new one when it refuses the old. */
+    document.querySelectorAll('input[name="x8-mute"]').forEach(function (choice) {
+        choice.checked = choice.value === String(saved.x8Mute || 0);
+        choice.addEventListener('change', function () {
+            saved.x8Mute = muteChoice();
+            save();
+        });
+    });
     element('x8-code').value = typeof saved.x8Code === 'string' ? saved.x8Code : '';
     showCodeState();
     showCodeBanner();

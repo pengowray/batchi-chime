@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Bat Recorder Setup</title>
-<link rel="stylesheet" href="setup.css?v=8">
+<link rel="stylesheet" href="setup.css?v=9">
 </head>
 <body>
 <main>
@@ -30,6 +30,12 @@
       <button class="command" id="x8-start" type="button"></button>
       <button class="command" id="x8-stop" type="button"></button>
     </div>
+    <fieldset class="choice" id="x8-mute">
+      <legend>Headphones while recording</legend>
+      <label><input type="radio" name="x8-mute" value="0" checked><span>X8&rsquo;s setting</span></label>
+      <label><input type="radio" name="x8-mute" value="1"><span>Muted</span></label>
+      <label><input type="radio" name="x8-mute" value="2"><span>Playing</span></label>
+    </fieldset>
     <h3 id="x8-modes-label">Listening mode</h3>
     <div class="mode-buttons" role="group" aria-labelledby="x8-modes-label">
       <button class="command" type="button" data-mode="1">HET</button>
@@ -72,7 +78,7 @@
         <li>REC PAUSE is on and the X8 is stopped: press REC once first.</li>
         <li>Bluetooth speakers: some can&rsquo;t play the 18&nbsp;kHz tone, and all set the X8&rsquo;s clock a fraction of a second late.</li>
         <li>iPhone plays nothing: check the silent switch or the Action button.</li>
-        <li>Firmware: Set X8 clock and Listening mode need bat firmware B257 or later. The X8 code needs B273 or later.</li>
+        <li>Firmware: Set X8 clock and Listening mode need bat firmware B257 or later. The X8 code, and Muted or Playing for the headphones, need B273 or later.</li>
       </ul>
     </details>
 
@@ -204,6 +210,6 @@
 <script src="audiomothchime_connector.js?v=4"></script>
 <script src="pippyg_chirp.js?v=4"></script>
 <script src="x8_remote.js?v=2"></script>
-<script src="setup.js?v=9"></script>
+<script src="setup.js?v=10"></script>
 </body>
 </html>

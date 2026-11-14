@@ -178,6 +178,18 @@ h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
 }
 /* Two buttons of equal weight: which one is wanted depends on what the recorder is doing. */
 .remote-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 16px; }
+/* A choice that goes with Start recording: three options in one row, the chosen one filled
+   in the panel colour with an accent border. The radio inputs stay in the page for the
+   keyboard and screen readers, drawn under their labels. */
+.choice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: -8px 0 16px; padding: 0; border: 0; }
+.choice legend { padding: 0 0 4px; color: var(--muted); font-size: 13px; }
+.choice label { position: relative; display: flex; }
+.choice input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.choice span { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 4px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); text-align: center; }
+.choice input:checked + span { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--panel); color: var(--text); }
+.choice input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.choice input:disabled + span { opacity: 0.6; }
+
 /* The X8's own mode names, in the order of its mode buttons. */
 .mode-buttons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .mode-buttons + .status { margin-top: 8px; }
