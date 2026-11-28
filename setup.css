@@ -100,7 +100,7 @@ input::placeholder { color: var(--muted); opacity: 1; }
 .check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
 .check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
 .check[hidden] { display: none; }
-/* Beside Lock location: whether the location follows this device. */
+/* Beside Lock location while it is unticked: the location follows this device. */
 .lock-state { color: var(--muted); font-size: 13px; }
 
 /* A quiet control for filling in a field. Only the send button is filled. */

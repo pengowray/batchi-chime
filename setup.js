@@ -53,7 +53,6 @@
         latitudeInvalid: 'Latitude not valid: the first number must be from -90 to 90.',
         longitudeInvalid: 'Longitude not valid: the second number must be from -180 to 180.',
         locationFollows: 'Updates from this device',
-        locationLocked: 'Stays as shown',
         /* After the status line of a command whose location could not be updated in time. */
         locationOld: function (time) { return ' Location not updated since ' + time + '.'; },
         locationNone: ' No location sent: this device has not given one yet.',
@@ -864,7 +863,7 @@
             locate.hidden = watch !== null || deviceLocation;
             element('x8-lock-row').hidden = watch === null && !deviceLocation;
             lock.checked = watch === null;
-            element('x8-lock-state').textContent = watch === null ? TEXT.locationLocked : TEXT.locationFollows;
+            element('x8-lock-state').textContent = watch === null ? '' : TEXT.locationFollows;
         }
         function showFix(position) {
             fixAt = Date.now();
