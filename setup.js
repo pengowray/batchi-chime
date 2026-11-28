@@ -2,8 +2,8 @@
 
 /* Plays chimes (unmodified AudioMoth library) and chirps (pippyg_chirp.js) from
    the three recorder tabs. Saved in this browser: the selected tab and the
-   PippyG and clock-set choices, the X8 code, and whether the X8 tab's location follows
-   this device. Location and deployment ID are never saved, because a stale one would go
+   PippyG and clock-set choices, the X8 code, and how the X8 tab's location is
+   updated from this device. Location and deployment ID are never saved, because a stale one would go
    into recordings without anyone noticing. */
 (function () {
     const TEXT = {
@@ -52,7 +52,9 @@
         locationInvalid: 'Location not valid: enter the latitude, a comma, then the longitude, such as -37.8136, 144.9631.',
         latitudeInvalid: 'Latitude not valid: the first number must be from -90 to 90.',
         longitudeInvalid: 'Longitude not valid: the second number must be from -180 to 180.',
-        locationFollows: 'Updates from this device',
+        locationAccuracy: function (metres) {
+            return 'Accuracy \u00b1' + (metres < 1000 ? Math.round(metres) + ' m' : (metres / 1000).toFixed(1) + ' km');
+        },
         /* After the status line of a command whose location could not be updated in time. */
         locationOld: function (time) { return ' Location not updated since ' + time + '.'; },
         locationNone: ' No location sent: this device has not given one yet.',
@@ -810,7 +812,7 @@
                 element(field).value = locationText(position.coords);
                 element(field).dispatchEvent(new Event('input'));
                 showIdle(panel);
-                if (found) found();
+                if (found) found(position);
             });
         }, function (error) {
             endLookup(function () {
@@ -835,10 +837,12 @@
         showClear();
     }
 
-    /* The X8 tab sends many commands in a visit, each with the location, so a location taken
-       from this device follows the device until Lock location is ticked: it is updated while
-       the page is open, and asked for again at each command, because a phone that was asleep
-       gives no updates. A typed location stays as typed, and has no Lock location. */
+    /* The X8 tab sends many commands in a visit, each with the location. A location taken
+       from this device is updated from it in the way chosen under Update location:
+       Continuously (while the page is open, and again at a command, because a phone that was
+       asleep gives no updates), At each command, or Locked. Continuously keeps the device's
+       GPS on, so its locations are the most accurate and it uses the most battery. A typed
+       location stays as typed, and has no choice. */
     const followedLocation = {
         /* Set by setUpFollowLocation. `refresh` asks for a new location at a command's press.
            `latest` gives the location to send, and a note for the status line when this
@@ -852,79 +856,84 @@
     function setUpFollowLocation(panel) {
         const field = element('x8-loc');
         const locate = element('x8-locate');
-        const lock = element('x8-lock');
+        const choices = Array.from(document.querySelectorAll('input[name="x8-loc-mode"]'));
+        const updating = function (value) { return value === 'follow' || value === 'send'; };
+        /* 'follow', 'send' or 'locked' for a location from this device; null with none, or
+           with a typed one. */
+        let mode = null;
+        /* The way of updating last chosen, for the next location taken from this device. */
+        let preferred = updating(saved.x8LocationMode) ? saved.x8LocationMode : 'follow';
         let watch = null;
-        /* The field's text came from this device, and when. */
-        let fromDevice = false;
         let fixAt = 0;
+        let accuracy = null;
         let setting = false;
         function show() {
-            const deviceLocation = fromDevice && field.value.trim() !== '';
-            locate.hidden = watch !== null || deviceLocation;
-            element('x8-lock-row').hidden = watch === null && !deviceLocation;
-            lock.checked = watch === null;
-            element('x8-lock-state').textContent = watch === null ? '' : TEXT.locationFollows;
+            locate.hidden = mode !== null;
+            element('x8-loc-mode').hidden = mode === null;
+            choices.forEach(function (choice) { choice.checked = choice.value === mode; });
+            const known = mode !== null && accuracy !== null && field.value.trim() !== '';
+            element('x8-loc-accuracy').hidden = !known;
+            if (known) element('x8-loc-accuracy').textContent = TEXT.locationAccuracy(accuracy);
         }
         function showFix(position) {
             fixAt = Date.now();
             /* Not while the field is being typed in. */
             if (document.activeElement === field) return;
+            accuracy = position.coords.accuracy;
             setting = true;
             field.value = locationText(position.coords);
             field.dispatchEvent(new Event('input'));
             setting = false;
         }
-        function stop() {
-            if (watch !== null) navigator.geolocation.clearWatch(watch);
-            watch = null;
-            saved.x8Follow = false;
+        /* The choice is kept for the next visit and for the next location taken from this
+           device. Locked and typed locations are not, because the location is not saved. */
+        function setMode(next) {
+            mode = next;
+            if (updating(mode)) saved.x8LocationMode = preferred = mode;
+            else if (mode === null) delete saved.x8LocationMode;
             save();
-            show();
-        }
-        function follow() {
-            if (watch === null) {
+            if (mode === 'follow' && watch === null) {
                 watch = navigator.geolocation.watchPosition(showFix, function (error) {
-                    /* A lookup that fails keeps the last location. Following ends only when
+                    /* A lookup that fails keeps the last location. Updating ends only when
                        permission is taken away. */
-                    if (error.code === error.PERMISSION_DENIED) stop();
+                    if (error.code === error.PERMISSION_DENIED) setMode(field.value.trim() === '' ? null : 'locked');
                 }, { enableHighAccuracy: true, maximumAge: 10000 });
+            } else if (mode !== 'follow' && watch !== null) {
+                navigator.geolocation.clearWatch(watch);
+                watch = null;
             }
-            saved.x8Follow = true;
-            save();
             show();
         }
-        function lookUp() {
-            element('x8-lock-state').textContent = TEXT.locating;
-            useLocation(panel, locate, 'x8-loc', function () {
-                fromDevice = true;
+        function lookUp(next) {
+            useLocation(panel, locate, 'x8-loc', function (position) {
                 fixAt = Date.now();
-                follow();
+                accuracy = position.coords.accuracy;
+                setMode(next);
             }, show);
         }
         field.addEventListener('input', function () {
-            if (setting) {
-                fromDevice = true;
-                show();
-            } else {
-                /* Typing and Clear location both end following. */
-                fromDevice = false;
-                stop();
-            }
+            /* Typing and Clear location both end updating. */
+            if (setting) show();
+            else setMode(null);
         });
-        locate.addEventListener('click', lookUp);
-        lock.addEventListener('change', function () {
-            if (lock.checked) stop();
-            else lookUp();
+        locate.addEventListener('click', function () {
+            lookUp(preferred);
+        });
+        choices.forEach(function (choice) {
+            choice.addEventListener('change', function () {
+                /* Leaving Locked takes this device's location now. */
+                if (mode === 'locked' && updating(choice.value)) lookUp(choice.value);
+                else setMode(choice.value);
+            });
         });
         followedLocation.refresh = function () {
-            /* On a visit after one that followed, the browser may want to ask for permission,
-               which it does only at a press. */
-            if (watch === null && saved.x8Follow === true && field.value.trim() === '' && navigator.geolocation) follow();
-            if (watch === null || Date.now() - fixAt < LOCATION_FRESH_MS) return;
-            navigator.geolocation.getCurrentPosition(showFix, function () {}, { enableHighAccuracy: true, timeout: 2000, maximumAge: LOCATION_FRESH_MS });
+            if (!updating(mode) || Date.now() - fixAt < LOCATION_FRESH_MS) return;
+            /* The chime is built about 2 s after the press and takes the location shown then.
+               A later answer still updates the field for the next command. */
+            navigator.geolocation.getCurrentPosition(showFix, function () {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: LOCATION_FRESH_MS });
         };
         followedLocation.latest = function (location) {
-            if (watch === null) return { latitude: location.latitude, longitude: location.longitude, note: '' };
+            if (!updating(mode)) return { latitude: location.latitude, longitude: location.longitude, note: '' };
             const parts = field.value.split(',').map(Number);
             const read = parts.length === 2 && parts.every(Number.isFinite) && field.value.trim() !== '';
             const old = Date.now() - fixAt >= LOCATION_FRESH_MS;
@@ -935,12 +944,16 @@
             };
         };
         show();
-        /* Follow again on the next visit. Where the browser would ask for permission, it
-           waits for the first command's press. */
-        if (saved.x8Follow === true && navigator.geolocation && navigator.permissions) {
-            navigator.permissions.query({ name: 'geolocation' }).then(function (permission) {
-                if (permission.state === 'granted' && field.value.trim() === '') follow();
-            }).catch(function () {});
+        /* On the next visit the field is blank and the choice is as it was left. The browser
+           may want to ask for permission, which it does at the first command's press;
+           Continuously starts now where permission is already given. */
+        if (updating(saved.x8LocationMode) && navigator.geolocation) {
+            if (saved.x8LocationMode === 'send') setMode('send');
+            else if (navigator.permissions) {
+                navigator.permissions.query({ name: 'geolocation' }).then(function (permission) {
+                    if (mode === null && field.value.trim() === '') setMode(permission.state === 'granted' ? 'follow' : 'send');
+                }).catch(function () {});
+            }
         }
     }
 

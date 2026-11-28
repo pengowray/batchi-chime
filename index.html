@@ -61,11 +61,17 @@
         <input id="x8-loc" type="text" inputmode="text" autocomplete="off" placeholder="e.g. -37.8136, 144.9631">
       </label>
     </div>
+    <p class="hint accuracy" id="x8-loc-accuracy" role="status" hidden></p>
     <div class="location-buttons">
       <button class="plain" id="x8-locate" type="button">Use this device&rsquo;s location</button>
       <button class="plain" id="x8-clear" type="button" hidden>Clear location</button>
     </div>
-    <label class="check" id="x8-lock-row" hidden><input id="x8-lock" type="checkbox"> Lock location <span class="lock-state" id="x8-lock-state"></span></label>
+    <fieldset class="choice below-field" id="x8-loc-mode" hidden>
+      <legend>Update location from this device</legend>
+      <label><input type="radio" name="x8-loc-mode" value="follow"><span>Continuously</span></label>
+      <label><input type="radio" name="x8-loc-mode" value="send"><span>At each command</span></label>
+      <label><input type="radio" name="x8-loc-mode" value="locked"><span>Locked</span></label>
+    </fieldset>
 
     <details>
       <summary>Setup and problems</summary>
