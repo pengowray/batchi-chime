@@ -2,8 +2,9 @@
 
 /* Plays chimes (unmodified AudioMoth library) and chirps (pippyg_chirp.js) from
    the three recorder tabs. Saved in this browser: the selected tab and the
-   PippyG and clock-set choices, and the X8 code. Location and deployment ID are
-   never saved, because a stale one would go into recordings without anyone noticing. */
+   PippyG and clock-set choices, the X8 code, and whether the X8 tab's location follows
+   this device. Location and deployment ID are never saved, because a stale one would go
+   into recordings without anyone noticing. */
 (function () {
     const TEXT = {
         play: 'Play chimes for 1 minute',
@@ -48,10 +49,14 @@
         locationRefused: 'Location permission refused: allow location for this page, or type the latitude and longitude.',
         locationInsecure: 'Secure page needed: this browser offers location only on https. Type the latitude and longitude.',
         locationNotFound: 'Location not found: try again, or type the latitude and longitude.',
-        latitudeInvalid: 'Latitude not valid: enter a number from -90 to 90.',
-        longitudeInvalid: 'Longitude not valid: enter a number from -180 to 180.',
-        longitudeMissing: 'Longitude missing: fill in longitude, or clear latitude.',
-        latitudeMissing: 'Latitude missing: fill in latitude, or clear longitude.',
+        locationInvalid: 'Location not valid: enter the latitude, a comma, then the longitude, such as -37.8136, 144.9631.',
+        latitudeInvalid: 'Latitude not valid: the first number must be from -90 to 90.',
+        longitudeInvalid: 'Longitude not valid: the second number must be from -180 to 180.',
+        locationFollows: 'Updates from this device',
+        locationLocked: 'Stays as shown',
+        /* After the status line of a command whose location could not be updated in time. */
+        locationOld: function (time) { return ' Location not updated since ' + time + '.'; },
+        locationNone: ' No location sent: this device has not given one yet.',
         idNotHex: 'Deployment ID not hexadecimal: use only 0 to 9 and A to F.',
         deviceIdInvalid: 'Device ID not valid: enter a whole number from 0 to 255.'
     };
@@ -164,7 +169,7 @@
     /* Panels. Each has a send button, a status line, and its own idle text. */
 
     function audiomothIdleText() {
-        const hasLocation = element('am-lat').value.trim() !== '' || element('am-lon').value.trim() !== '';
+        const hasLocation = element('am-loc').value.trim() !== '';
         const hasId = element('am-id').value.trim() !== '';
         let list = "this device's date, time and UTC offset";
         if (hasLocation && hasId) list = "this device's date, time, UTC offset, location and deployment ID";
@@ -449,11 +454,14 @@
                 const time = window.X8Remote.chimeTime(date);
                 const id = code ? window.X8Remote.codedId(code, command, argument, time.unixTime, time.utcOffsetMinutes)
                     : window.X8Remote.plainId(command, argument);
+                /* A location that follows this device was asked for again at the press, and
+                   the tone has given the answer time to arrive. */
+                const latest = followedLocation.latest(location);
                 /* The connector sends the ID's bytes in reverse order. */
-                thisRun.connector.playTimeAndDeploymentID(date, time.utcOffsetMinutes, location.latitude, location.longitude, id.slice().reverse(), function () {
+                thisRun.connector.playTimeAndDeploymentID(date, time.utcOffsetMinutes, latest.latitude, latest.longitude, id.slice().reverse(), function () {
                     if (run !== thisRun) return;
                     thisRun.count += 1;
-                    finish(thisRun, function () { showStatus(thisRun.panel, TEXT.remotePlayed(name, thisRun.panel.notes, code)); });
+                    finish(thisRun, function () { showStatus(thisRun.panel, TEXT.remotePlayed(name, thisRun.panel.notes, code) + latest.note); });
                 });
             }, REMOTE_WAIT_AFTER_TONE_MS);
         });
@@ -473,8 +481,9 @@
         const code = readCode(panel);
         if (code === undefined) return;
         showCodeBanner();
-        const location = readLocation(panel, 'x8-lat', 'x8-lon');
+        const location = readLocation(panel, 'x8-loc');
         if (location === undefined) return;
+        followedLocation.refresh();
         panel.button.textContent = TEXT.remoteCancel;
         startRun(panel, function (started) {
             window.AudioContext = function () { return started.context; };
@@ -560,20 +569,23 @@
         if (digits !== null) element('x8-code-banner-text').textContent = TEXT.codeBanner(digits);
     }
 
-    /* Returns { latitude, longitude }, both null when both fields are blank. */
-    function readLocation(panel, latitudeField, longitudeField) {
-        const latitudeText = element(latitudeField).value.trim();
-        const longitudeText = element(longitudeField).value.trim();
-        if (latitudeText === '' && longitudeText === '') return { latitude: null, longitude: null };
-        const latitude = decimalNumber(latitudeText);
-        const longitude = decimalNumber(longitudeText);
-        /* A wrong value is reported before a missing one, so 200 with a blank longitude
-           does not ask for a longitude and then fail on the latitude. */
-        if (latitudeText !== '' && !(Math.abs(latitude) <= 90)) return fieldError(panel, latitudeField, TEXT.latitudeInvalid);
-        if (longitudeText !== '' && !(Math.abs(longitude) <= 180)) return fieldError(panel, longitudeField, TEXT.longitudeInvalid);
-        if (longitudeText === '') return fieldError(panel, longitudeField, TEXT.longitudeMissing);
-        if (latitudeText === '') return fieldError(panel, latitudeField, TEXT.latitudeMissing);
+    /* Returns { latitude, longitude }, both null when the field is blank. The field has
+       both numbers, so that a location can be copied to and from maps and notes in one go.
+       A space between the numbers is accepted as well as a comma. */
+    function readLocation(panel, field) {
+        const text = element(field).value.trim();
+        if (text === '') return { latitude: null, longitude: null };
+        const parts = text.split(/\s*,\s*|\s+/);
+        const latitude = decimalNumber(parts[0]);
+        const longitude = decimalNumber(parts[1] || '');
+        if (parts.length !== 2 || Number.isNaN(latitude) || Number.isNaN(longitude)) return fieldError(panel, field, TEXT.locationInvalid);
+        if (!(Math.abs(latitude) <= 90)) return fieldError(panel, field, TEXT.latitudeInvalid);
+        if (!(Math.abs(longitude) <= 180)) return fieldError(panel, field, TEXT.longitudeInvalid);
         return { latitude: latitude, longitude: longitude };
+    }
+
+    function locationText(coords) {
+        return coords.latitude.toFixed(6) + ', ' + coords.longitude.toFixed(6);
     }
 
     /* Returns 8 byte values in the order typed, which is the order AudioMoth
@@ -593,7 +605,7 @@
 
     function sendAudiomoth() {
         const panel = panels.audiomoth;
-        const location = readLocation(panel, 'am-lat', 'am-lon');
+        const location = readLocation(panel, 'am-loc');
         if (location === undefined) return;
         const id = readDeploymentId(panel);
         if (id === undefined) return;
@@ -608,7 +620,7 @@
     function readPippygSettings(panel) {
         const idText = element('pg-id').value.trim();
         if (!/^\d+$/.test(idText) || Number(idText) > 255) return fieldError(panel, 'pg-id', TEXT.deviceIdInvalid);
-        const location = readLocation(panel, 'pg-lat', 'pg-lon');
+        const location = readLocation(panel, 'pg-loc');
         if (location === undefined) return undefined;
         const wake = Number(element('pg-wake').value);
         const sleep = Number(element('pg-sleep').value);
@@ -749,7 +761,7 @@
                 savePippygChoices();
             });
         });
-        ['pg-id', 'pg-lat', 'pg-lon'].forEach(function (id) {
+        ['pg-id', 'pg-loc'].forEach(function (id) {
             element(id).addEventListener('input', function () {
                 if (panels.pippyg.status.classList.contains('error')) showIdle(panels.pippyg);
             });
@@ -759,12 +771,14 @@
     /* Filling in fields from the phone */
 
     /* The send button stays off until the lookup ends, because a chime or chirp sent now
-       would leave out the location that the fields are about to show. */
-    function useLocation(panel, locateButton, latitudeField, longitudeField) {
+       would leave out the location that the field is about to show. `found` and `failed`,
+       if given, are called when the lookup ends. */
+    function useLocation(panel, locateButton, field, found, failed) {
         /* The status line can be far below this button, off the screen. */
         function showLocationError(text) {
             showStatus(panel, text, true);
             panel.status.scrollIntoView({ block: 'nearest' });
+            if (failed) failed();
         }
         if (!window.isSecureContext) {
             showLocationError(TEXT.locationInsecure);
@@ -794,10 +808,10 @@
         }, LOCATION_WAIT_MS);
         navigator.geolocation.getCurrentPosition(function (position) {
             endLookup(function () {
-                element(latitudeField).value = position.coords.latitude.toFixed(6);
-                element(longitudeField).value = position.coords.longitude.toFixed(6);
-                element(latitudeField).dispatchEvent(new Event('input'));
+                element(field).value = locationText(position.coords);
+                element(field).dispatchEvent(new Event('input'));
                 showIdle(panel);
+                if (found) found();
             });
         }, function (error) {
             endLookup(function () {
@@ -806,20 +820,129 @@
         }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
     }
 
-    /* Clear location empties both fields. The input event lets each tab's own
+    /* Clear location empties the field. The input event lets each tab's own
        listeners update its status line, as typing would. */
     function setUpClearLocation(prefix) {
-        const fields = [element(prefix + '-lat'), element(prefix + '-lon')];
+        const field = element(prefix + '-loc');
         const clear = element(prefix + '-clear');
         function showClear() {
-            clear.hidden = fields.every(function (field) { return field.value.trim() === ''; });
+            clear.hidden = field.value.trim() === '';
         }
-        fields.forEach(function (field) { field.addEventListener('input', showClear); });
+        field.addEventListener('input', showClear);
         clear.addEventListener('click', function () {
-            fields.forEach(function (field) { field.value = ''; });
-            fields[0].dispatchEvent(new Event('input'));
+            field.value = '';
+            field.dispatchEvent(new Event('input'));
         });
         showClear();
+    }
+
+    /* The X8 tab sends many commands in a visit, each with the location, so a location taken
+       from this device follows the device until Lock location is ticked: it is updated while
+       the page is open, and asked for again at each command, because a phone that was asleep
+       gives no updates. A typed location stays as typed, and has no Lock location. */
+    const followedLocation = {
+        /* Set by setUpFollowLocation. `refresh` asks for a new location at a command's press.
+           `latest` gives the location to send, and a note for the status line when this
+           device gave none in time. */
+        refresh: function () {},
+        latest: function (location) { return { latitude: location.latitude, longitude: location.longitude, note: '' }; }
+    };
+    /* A location older than this is asked for again at a press, and noted if it is sent. */
+    const LOCATION_FRESH_MS = 15000;
+
+    function setUpFollowLocation(panel) {
+        const field = element('x8-loc');
+        const locate = element('x8-locate');
+        const lock = element('x8-lock');
+        let watch = null;
+        /* The field's text came from this device, and when. */
+        let fromDevice = false;
+        let fixAt = 0;
+        let setting = false;
+        function show() {
+            const deviceLocation = fromDevice && field.value.trim() !== '';
+            locate.hidden = watch !== null || deviceLocation;
+            element('x8-lock-row').hidden = watch === null && !deviceLocation;
+            lock.checked = watch === null;
+            element('x8-lock-state').textContent = watch === null ? TEXT.locationLocked : TEXT.locationFollows;
+        }
+        function showFix(position) {
+            fixAt = Date.now();
+            /* Not while the field is being typed in. */
+            if (document.activeElement === field) return;
+            setting = true;
+            field.value = locationText(position.coords);
+            field.dispatchEvent(new Event('input'));
+            setting = false;
+        }
+        function stop() {
+            if (watch !== null) navigator.geolocation.clearWatch(watch);
+            watch = null;
+            saved.x8Follow = false;
+            save();
+            show();
+        }
+        function follow() {
+            if (watch === null) {
+                watch = navigator.geolocation.watchPosition(showFix, function (error) {
+                    /* A lookup that fails keeps the last location. Following ends only when
+                       permission is taken away. */
+                    if (error.code === error.PERMISSION_DENIED) stop();
+                }, { enableHighAccuracy: true, maximumAge: 10000 });
+            }
+            saved.x8Follow = true;
+            save();
+            show();
+        }
+        function lookUp() {
+            element('x8-lock-state').textContent = TEXT.locating;
+            useLocation(panel, locate, 'x8-loc', function () {
+                fromDevice = true;
+                fixAt = Date.now();
+                follow();
+            }, show);
+        }
+        field.addEventListener('input', function () {
+            if (setting) {
+                fromDevice = true;
+                show();
+            } else {
+                /* Typing and Clear location both end following. */
+                fromDevice = false;
+                stop();
+            }
+        });
+        locate.addEventListener('click', lookUp);
+        lock.addEventListener('change', function () {
+            if (lock.checked) stop();
+            else lookUp();
+        });
+        followedLocation.refresh = function () {
+            /* On a visit after one that followed, the browser may want to ask for permission,
+               which it does only at a press. */
+            if (watch === null && saved.x8Follow === true && field.value.trim() === '' && navigator.geolocation) follow();
+            if (watch === null || Date.now() - fixAt < LOCATION_FRESH_MS) return;
+            navigator.geolocation.getCurrentPosition(showFix, function () {}, { enableHighAccuracy: true, timeout: 2000, maximumAge: LOCATION_FRESH_MS });
+        };
+        followedLocation.latest = function (location) {
+            if (watch === null) return { latitude: location.latitude, longitude: location.longitude, note: '' };
+            const parts = field.value.split(',').map(Number);
+            const read = parts.length === 2 && parts.every(Number.isFinite) && field.value.trim() !== '';
+            const old = Date.now() - fixAt >= LOCATION_FRESH_MS;
+            return {
+                latitude: read ? parts[0] : location.latitude,
+                longitude: read ? parts[1] : location.longitude,
+                note: !read ? TEXT.locationNone : old ? TEXT.locationOld(new Date(fixAt).toLocaleTimeString()) : ''
+            };
+        };
+        show();
+        /* Follow again on the next visit. Where the browser would ask for permission, it
+           waits for the first command's press. */
+        if (saved.x8Follow === true && navigator.geolocation && navigator.permissions) {
+            navigator.permissions.query({ name: 'geolocation' }).then(function (permission) {
+                if (permission.state === 'granted' && field.value.trim() === '') follow();
+            }).catch(function () {});
+        }
     }
 
     function useRandomId() {
@@ -900,8 +1023,8 @@
         });
     });
     showIdle(remotePanels[0]);
-    /* The X8 makes a new code each time it is powered on. The old one stays in the field,
-       where it can be seen, and the X8's screen shows the new one when it refuses the old. */
+    /* The code stays in the field, where it can be seen. X8 firmware before B283 makes a new
+       code at each power-on, and its screen shows the new one when it refuses the old. */
     document.querySelectorAll('input[name="x8-mute"]').forEach(function (choice) {
         choice.checked = choice.value === String(saved.x8Mute || 0);
         choice.addEventListener('change', function () {
@@ -918,31 +1041,48 @@
         saved.x8Code = element('x8-code').value.trim();
         save();
     });
-    ['x8-code', 'x8-lat', 'x8-lon'].forEach(function (id) {
+    ['x8-code', 'x8-loc'].forEach(function (id) {
         element(id).addEventListener('input', function () {
             if (!run && remotePanels[0].status.classList.contains('error')) showIdle(remotePanels[0]);
         });
     });
-    element('x8-locate').addEventListener('click', function () { useLocation(remotePanels[0], element('x8-locate'), 'x8-lat', 'x8-lon'); });
 
     element('am-clock-set').addEventListener('change', function () {
         saved.audiomothClockSet = element('am-clock-set').checked;
         save();
         if (!run) panels.audiomoth.button.textContent = panels.audiomoth.sendLabel();
     });
-    ['am-lat', 'am-lon', 'am-id'].forEach(function (id) {
+    ['am-loc', 'am-id'].forEach(function (id) {
         element(id).addEventListener('input', function () {
             if (!run) showIdle(panels.audiomoth);
         });
     });
-    element('am-locate').addEventListener('click', function () { useLocation(panels.audiomoth, element('am-locate'), 'am-lat', 'am-lon'); });
-    element('pg-locate').addEventListener('click', function () { useLocation(panels.pippyg, element('pg-locate'), 'pg-lat', 'pg-lon'); });
+    element('am-locate').addEventListener('click', function () { useLocation(panels.audiomoth, element('am-locate'), 'am-loc'); });
+    element('pg-locate').addEventListener('click', function () { useLocation(panels.pippyg, element('pg-locate'), 'pg-loc'); });
     element('am-random').addEventListener('click', useRandomId);
     ['x8', 'am', 'pg'].forEach(setUpClearLocation);
+    setUpFollowLocation(remotePanels[0]);
 
     showClock();
     const isPanel = function (name) { return Object.prototype.hasOwnProperty.call(panels, name); };
-    /* The X8's QR code holds #x8; capitals too, in case a reader changes the case. */
-    const linked = location.hash.slice(1).toLowerCase();
+    /* The X8's QR code holds #x8, or #x8-493817 while the X8's Phone code switch is on,
+       where the digits are the X8's code; capitals too, in case a reader changes the case.
+       The code goes into its field and is saved as if typed, and leaves the address, so
+       that a copied link does not give it away. Returns the tab the address names. */
+    function linkedTab() {
+        const linked = location.hash.slice(1).toLowerCase();
+        const coded = /^x8-(\d{6})$/.exec(linked);
+        if (!coded) return linked;
+        element('x8-code').value = codeText(coded[1]);
+        element('x8-code').dispatchEvent(new Event('input'));
+        showCodeBanner();
+        return 'x8';
+    }
+    const linked = linkedTab();
     selectTab(isPanel(linked) ? linked : isPanel(saved.tab) ? saved.tab : 'x8', false);
+    /* A scan while the page is already open changes the address without loading the page. */
+    window.addEventListener('hashchange', function () {
+        const tab = linkedTab();
+        if (isPanel(tab)) selectTab(tab, false);
+    });
 }());

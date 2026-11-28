@@ -56,18 +56,16 @@
     </div>
 
     <h3>Location for the recordings (optional)</h3>
-    <div class="fields">
-      <label>Latitude
-        <input id="x8-lat" type="text" inputmode="text" autocomplete="off" placeholder="-90 to 90">
-      </label>
-      <label>Longitude
-        <input id="x8-lon" type="text" inputmode="text" autocomplete="off" placeholder="-180 to 180">
+    <div class="fields one">
+      <label>Latitude, longitude
+        <input id="x8-loc" type="text" inputmode="text" autocomplete="off" placeholder="e.g. -37.8136, 144.9631">
       </label>
     </div>
     <div class="location-buttons">
       <button class="plain" id="x8-locate" type="button">Use this device&rsquo;s location</button>
       <button class="plain" id="x8-clear" type="button" hidden>Clear location</button>
     </div>
+    <label class="check" id="x8-lock-row" hidden><input id="x8-lock" type="checkbox"> Lock location <span class="lock-state" id="x8-lock-state"></span></label>
 
     <details>
       <summary>Setup and problems</summary>
@@ -78,7 +76,7 @@
         <li>REC PAUSE is on and the X8 is stopped: press REC once first.</li>
         <li>Bluetooth speakers: some can&rsquo;t play the 18&nbsp;kHz tone, and all set the X8&rsquo;s clock a fraction of a second late.</li>
         <li>iPhone plays nothing: check the silent switch or the Action button.</li>
-        <li>Firmware: Set X8 clock and Listening mode need bat firmware B257 or later. The X8 code, and Muted or Playing for the headphones, need B273 or later. Start recording and Stop recording with HOLD on need B287 or later.</li>
+        <li>Firmware: Set X8 clock and Listening mode need bat firmware B257 or later. The X8 code, and Muted or Playing for the headphones, need B273 or later. From B292, scanning the X8&rsquo;s QR code fills in the X8 code. Start recording and Stop recording with HOLD on need B287 or later.</li>
       </ul>
     </details>
 
@@ -95,12 +93,9 @@
   </section>
 
   <section id="panel-audiomoth" role="tabpanel" aria-labelledby="tab-audiomoth" hidden>
-    <div class="fields">
-      <label>Latitude
-        <input id="am-lat" type="text" inputmode="text" autocomplete="off" placeholder="-90 to 90">
-      </label>
-      <label>Longitude
-        <input id="am-lon" type="text" inputmode="text" autocomplete="off" placeholder="-180 to 180">
+    <div class="fields one">
+      <label>Latitude, longitude
+        <input id="am-loc" type="text" inputmode="text" autocomplete="off" placeholder="e.g. -37.8136, 144.9631">
       </label>
     </div>
     <p class="hint">Decimal degrees. Optional: fill in both or neither.</p>
@@ -177,15 +172,12 @@
     </div>
     <p class="hint">Device ID: 0 to 255. 0 keeps the PippyG's current ID.</p>
 
-    <div class="fields">
-      <label>Latitude
-        <input id="pg-lat" type="text" inputmode="text" autocomplete="off" placeholder="-90 to 90">
-      </label>
-      <label>Longitude
-        <input id="pg-lon" type="text" inputmode="text" autocomplete="off" placeholder="-180 to 180">
+    <div class="fields one">
+      <label>Latitude, longitude
+        <input id="pg-loc" type="text" inputmode="text" autocomplete="off" placeholder="e.g. -37.8136, 144.9631">
       </label>
     </div>
-    <p class="hint">Optional, in decimal degrees. If both fields are blank, each recording's metadata has latitude 0, longitude 0.</p>
+    <p class="hint">Optional, in decimal degrees. If the field is blank, each recording's metadata has latitude 0, longitude 0.</p>
     <div class="location-buttons">
       <button class="plain" id="pg-locate" type="button">Use this device&rsquo;s location</button>
       <button class="plain" id="pg-clear" type="button" hidden>Clear location</button>
