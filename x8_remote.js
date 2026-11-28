@@ -86,7 +86,12 @@
        (2 bytes), both low byte first. The key is the code's 6 ASCII digits, then 10 zero
        bytes. Bat firmware B273 and later reads it. Returns the 8 bytes. */
     function codedId(digits, command, argument, unixTime, utcOffsetMinutes) {
-        const head = MAGIC.concat([2, (command << 4) | (argument & 0x0f)]);
+        return checkedId(digits, 2, command, argument, unixTime, utcOffsetMinutes);
+    }
+
+    /* "BATX", `version`, the command and argument in one byte, and the check. */
+    function checkedId(digits, version, command, argument, unixTime, utcOffsetMinutes) {
+        const head = MAGIC.concat([version, (command << 4) | (argument & 0x0f)]);
         const message = new Uint8Array(12);
         message.set(head);
         const view = new DataView(message.buffer);
@@ -98,5 +103,29 @@
         return head.concat([Number(hash & 0xffn), Number((hash >> 8n) & 0xffn)]);
     }
 
-    root.X8Remote = { chimeTime: chimeTime, plainId: plainId, codeDigits: codeDigits, codedId: codedId, sipHash24: sipHash24 };
+    /* The accuracy of the chime's location goes in 4 bits as a step: step 1 is up to 3 m,
+       step 14 up to 10 km, and step 15 is over 10 km. The accuracy is the radius that 68% of
+       readings are within, which GUANO's Loc Accuracy field holds. */
+    const ACCURACY_STEPS_M = [3, 5, 7, 10, 15, 20, 30, 50, 100, 200, 500, 1000, 3000, 10000];
+
+    /* The first step that is not under `metres`, or 15 for over 10 km. 0 for an accuracy
+       that is not known: a command is then sent in version 1 or 2. */
+    function accuracyStep(metres) {
+        if (typeof metres !== 'number' || !(metres >= 0)) return 0;
+        const step = ACCURACY_STEPS_M.findIndex(function (bound) { return metres <= bound; });
+        return step < 0 ? 15 : step + 1;
+    }
+
+    /* With the location's accuracy, for bat firmware B293 and later: as version 2, but byte 4
+       is 0x30 plus the accuracy step, and the check covers it. With no code (`digits` null),
+       byte 4 is 0x40 plus the step, and the check's 2 bytes are 0. Returns the 8 bytes. */
+    function accurateId(digits, step, command, argument, unixTime, utcOffsetMinutes) {
+        if (digits) return checkedId(digits, 0x30 | step, command, argument, unixTime, utcOffsetMinutes);
+        return MAGIC.concat([0x40 | step, (command << 4) | (argument & 0x0f), 0, 0]);
+    }
+
+    root.X8Remote = {
+        chimeTime: chimeTime, plainId: plainId, codeDigits: codeDigits, codedId: codedId, sipHash24: sipHash24,
+        accuracyStep: accuracyStep, accurateId: accurateId
+    };
 }(typeof window === 'undefined' ? globalThis : window));

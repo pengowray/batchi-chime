@@ -37,6 +37,17 @@ test('a command with a code matches the chime crate', () => {
     assert.equal(hex(X.codedId('000000', 3, 0, 0, 0)), '42 41 54 58 02 30 6b 0a');
 });
 
+test('a command with an accuracy matches the chime crate', () => {
+    assert.equal(hex(X.accurateId('493817', 4, 1, 0, 1794700800, 600)), '42 41 54 58 34 10 f2 c8');
+    assert.equal(hex(X.accurateId('493817', 0, 4, 6, 1794700801, -300)), '42 41 54 58 30 46 25 7f');
+    assert.equal(hex(X.accurateId(null, 15, 2, 0, 1794700800, 600)), '42 41 54 58 4f 20 00 00');
+});
+
+test('an accuracy step is the first one that is not under the accuracy', () => {
+    const steps = [[0, 1], [3, 1], [3.01, 2], [8.4, 4], [10, 4], [50, 8], [50.1, 9], [10000, 14], [10000.1, 15], [Infinity, 15], [-1, 0], [NaN, 0], [null, 0]];
+    for (const [metres, step] of steps) assert.equal(X.accuracyStep(metres), step, String(metres));
+});
+
 test('a code is 6 digits, with or without spaces', () => {
     assert.equal(X.codeDigits('493817'), '493817');
     assert.equal(X.codeDigits(' 493 817 '), '493817');

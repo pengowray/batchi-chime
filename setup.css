@@ -102,7 +102,7 @@ input::placeholder { color: var(--muted); opacity: 1; }
 /* The X8 tab's location: how accurate this device says it is, and how it is updated. */
 .hint.accuracy { margin: 4px 0 0; font-variant-numeric: tabular-nums; }
 .hint.accuracy + .location-buttons { margin-top: 12px; }
-.hint[hidden], .choice[hidden] { display: none; }
+.hint[hidden], .choice[hidden], .check[hidden] { display: none; }
 
 /* A quiet control for filling in a field. Only the send button is filled. */
 .plain {

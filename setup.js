@@ -453,11 +453,15 @@
                    time the connector will send and gives the connector the same offset. */
                 const date = new Date();
                 const time = window.X8Remote.chimeTime(date);
-                const id = code ? window.X8Remote.codedId(code, command, argument, time.unixTime, time.utcOffsetMinutes)
-                    : window.X8Remote.plainId(command, argument);
                 /* A location that follows this device was asked for again at the press, and
                    the tone has given the answer time to arrive. */
                 const latest = followedLocation.latest(location);
+                /* Firmware before B293 refuses a command with an accuracy, so one goes only
+                   when Send accuracy is ticked and this device gave an accuracy to send. */
+                const step = element('x8-send-accuracy').checked ? window.X8Remote.accuracyStep(latest.accuracy) : 0;
+                const id = step > 0 ? window.X8Remote.accurateId(code, step, command, argument, time.unixTime, time.utcOffsetMinutes)
+                    : code ? window.X8Remote.codedId(code, command, argument, time.unixTime, time.utcOffsetMinutes)
+                    : window.X8Remote.plainId(command, argument);
                 /* The connector sends the ID's bytes in reverse order. */
                 thisRun.connector.playTimeAndDeploymentID(date, time.utcOffsetMinutes, latest.latitude, latest.longitude, id.slice().reverse(), function () {
                     if (run !== thisRun) return;
@@ -845,10 +849,11 @@
        location stays as typed, and has no choice. */
     const followedLocation = {
         /* Set by setUpFollowLocation. `refresh` asks for a new location at a command's press.
-           `latest` gives the location to send, and a note for the status line when this
-           device gave none in time. */
+           `latest` gives the location to send, its accuracy in metres as GUANO takes it (null
+           for a typed location), and a note for the status line when this device gave no
+           location in time. */
         refresh: function () {},
-        latest: function (location) { return { latitude: location.latitude, longitude: location.longitude, note: '' }; }
+        latest: function (location) { return { latitude: location.latitude, longitude: location.longitude, accuracy: null, note: '' }; }
     };
     /* A location older than this is asked for again at a press, and noted if it is sent. */
     const LOCATION_FRESH_MS = 15000;
@@ -870,15 +875,16 @@
         function show() {
             locate.hidden = mode !== null;
             element('x8-loc-mode').hidden = mode === null;
+            element('x8-send-accuracy-row').hidden = mode === null;
             choices.forEach(function (choice) { choice.checked = choice.value === mode; });
             const known = mode !== null && accuracy !== null && field.value.trim() !== '';
             element('x8-loc-accuracy').hidden = !known;
             if (known) element('x8-loc-accuracy').textContent = TEXT.locationAccuracy(accuracy);
         }
         function showFix(position) {
-            fixAt = Date.now();
             /* Not while the field is being typed in. */
             if (document.activeElement === field) return;
+            fixAt = Date.now();
             accuracy = position.coords.accuracy;
             setting = true;
             field.value = locationText(position.coords);
@@ -933,16 +939,29 @@
             navigator.geolocation.getCurrentPosition(showFix, function () {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: LOCATION_FRESH_MS });
         };
         followedLocation.latest = function (location) {
-            if (!updating(mode)) return { latitude: location.latitude, longitude: location.longitude, note: '' };
+            /* The browser gives the radius that 95% of readings are within. GUANO's Loc Accuracy
+               is the radius for 68%, which GUANO takes as half of it. */
+            const sent = mode !== null && accuracy !== null ? accuracy / 2 : null;
+            if (!updating(mode)) return { latitude: location.latitude, longitude: location.longitude, accuracy: location.latitude === null ? null : sent, note: '' };
             const parts = field.value.split(',').map(Number);
             const read = parts.length === 2 && parts.every(Number.isFinite) && field.value.trim() !== '';
             const old = Date.now() - fixAt >= LOCATION_FRESH_MS;
             return {
                 latitude: read ? parts[0] : location.latitude,
                 longitude: read ? parts[1] : location.longitude,
+                accuracy: read ? sent : null,
                 note: !read ? TEXT.locationNone : old ? TEXT.locationOld(new Date(fixAt).toLocaleTimeString()) : ''
             };
         };
+        const sendAccuracy = element('x8-send-accuracy');
+        sendAccuracy.checked = saved.x8SendAccuracy === true;
+        sendAccuracy.addEventListener('change', function () {
+            saved.x8SendAccuracy = sendAccuracy.checked;
+            save();
+        });
+        /* A browser can put back the field's text when the page is loaded again. That
+           location is from an earlier visit, so it is not kept. */
+        if (updating(saved.x8LocationMode)) field.value = '';
         show();
         /* On the next visit the field is blank and the choice is as it was left. The browser
            may want to ask for permission, which it does at the first command's press;
